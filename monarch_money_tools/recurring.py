@@ -4,7 +4,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from statistics import median, pstdev
-from typing import Any
+from typing import Any, cast
 
 from .paths import normalized_latest_dir, reports_latest_dir
 from .storage import read_json, write_csv, write_text
@@ -403,7 +403,7 @@ def _status_sort_key(status: str) -> int:
 
 
 def _money(value: object) -> str:
-    return f"${float(value):,.2f}"
+    return f"${float(cast(float | int | str, value)):,.2f}"
 
 
 def _parse_date(value: str) -> date | None:

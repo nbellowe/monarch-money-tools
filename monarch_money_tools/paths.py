@@ -40,11 +40,15 @@ def cleanup_latest_dir() -> Path:
 
 
 def taxonomy_dir() -> Path:
-    return data_dir() / "taxonomy"
+    return root_dir() / "taxonomy"
 
 
 def rules_latest_dir() -> Path:
     return data_dir() / "rules" / "latest"
+
+
+def cashflow_latest_dir() -> Path:
+    return data_dir() / "cashflow" / "latest"
 
 
 def backups_dir() -> Path:
