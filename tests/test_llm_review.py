@@ -12,6 +12,4 @@ def test_parse_response_accepts_fenced_json() -> None:
 ```"""
     )
 
-    assert parsed == [
-        {"merchant_key": "mystery", "category": "Miscellaneous", "confidence": 0.7}
-    ]
+    assert parsed == [{"merchant_key": "mystery", "category": "Miscellaneous", "confidence": 0.7}]

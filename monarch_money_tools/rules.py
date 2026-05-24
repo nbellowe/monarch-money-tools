@@ -21,6 +21,7 @@ Rule actions:
   clearNeedsReview              mark as reviewed (needsReview=false)
   addTag                        tag name to attach
 """
+
 from __future__ import annotations
 
 import re
@@ -44,6 +45,7 @@ SKIP_CATEGORIES = {"Uncategorized"}
 # ---------------------------------------------------------------------------
 # Suggestion builder
 # ---------------------------------------------------------------------------
+
 
 def build_rule_suggestions() -> JsonObject:
     bundle_path = normalized_latest_dir() / "bundle.json"
@@ -93,6 +95,7 @@ def build_rule_suggestions() -> JsonObject:
 # ---------------------------------------------------------------------------
 # Profile builders
 # ---------------------------------------------------------------------------
+
 
 def _build_merchant_profiles(
     transactions: list[JsonObject],
@@ -189,6 +192,7 @@ def _build_nr_consistent_profiles(
 # Rule consolidation
 # ---------------------------------------------------------------------------
 
+
 def _consolidate_rules(
     merchant_profiles: dict[str, JsonObject],
     nr_profiles: dict[str, JsonObject],
@@ -215,33 +219,35 @@ def _consolidate_rules(
         max_conf = max(confidences)
         n = len(members)
 
-        rules.append({
-            "id": str(uuid.uuid4())[:8],
-            "name": f"{category} — auto-clear",
-            "description": (
-                f"{n} merchants → {category}. "
-                f"{total_pending} needs-review transactions. "
-                f"Confidence {min_conf:.2f}–{max_conf:.2f} (avg {avg_conf:.2f}). "
-                f"Remove individual merchants from match.merchantNames to exclude them."
-            ),
-            "match": {
-                "merchantNames": merchant_names,
-                "needsReview": True,
-            },
-            "action": {
-                "setCategory": category,
-                "setCategoryId": cat_id_map[category],
-                "clearNeedsReview": True,
-                "addTag": None,
-                "hideFromReports": None,
-            },
-            "confidence": round(avg_conf, 4),
-            "source": "consolidated",
-            "evidenceCount": sum(m["evidence"] for m in members),
-            "pendingMatchCount": total_pending,
-            "merchants": members,
-            "enabled": True,
-        })
+        rules.append(
+            {
+                "id": str(uuid.uuid4())[:8],
+                "name": f"{category} — auto-clear",
+                "description": (
+                    f"{n} merchants → {category}. "
+                    f"{total_pending} needs-review transactions. "
+                    f"Confidence {min_conf:.2f}–{max_conf:.2f} (avg {avg_conf:.2f}). "
+                    f"Remove individual merchants from match.merchantNames to exclude them."
+                ),
+                "match": {
+                    "merchantNames": merchant_names,
+                    "needsReview": True,
+                },
+                "action": {
+                    "setCategory": category,
+                    "setCategoryId": cat_id_map[category],
+                    "clearNeedsReview": True,
+                    "addTag": None,
+                    "hideFromReports": None,
+                },
+                "confidence": round(avg_conf, 4),
+                "source": "consolidated",
+                "evidenceCount": sum(m["evidence"] for m in members),
+                "pendingMatchCount": total_pending,
+                "merchants": members,
+                "enabled": True,
+            }
+        )
 
     return sorted(rules, key=lambda r: -r["pendingMatchCount"])
 
@@ -249,6 +255,7 @@ def _consolidate_rules(
 # ---------------------------------------------------------------------------
 # Rule application
 # ---------------------------------------------------------------------------
+
 
 def match_transactions(rule: JsonObject, transactions: list[JsonObject]) -> list[JsonObject]:
     match = rule.get("match") or {}
@@ -354,17 +361,19 @@ def build_apply_plan(
             category_id = action.get("setCategoryId") or (
                 category_id_by_name.get(set_category) if set_category else None
             )
-            updates.append({
-                "transactionId": txn_id,
-                "merchantName": txn.get("merchantName") or "",
-                "currentCategory": txn.get("categoryName") or "",
-                "suggestedCategory": set_category or "",
-                "categoryId": category_id or "",
-                "clearNeedsReview": bool(action.get("clearNeedsReview", False)),
-                "addTag": action.get("addTag") or None,
-                "ruleId": rule.get("id", ""),
-                "ruleName": rule.get("name", ""),
-            })
+            updates.append(
+                {
+                    "transactionId": txn_id,
+                    "merchantName": txn.get("merchantName") or "",
+                    "currentCategory": txn.get("categoryName") or "",
+                    "suggestedCategory": set_category or "",
+                    "categoryId": category_id or "",
+                    "clearNeedsReview": bool(action.get("clearNeedsReview", False)),
+                    "addTag": action.get("addTag") or None,
+                    "ruleId": rule.get("id", ""),
+                    "ruleName": rule.get("name", ""),
+                }
+            )
 
     return {
         "generatedAt": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
@@ -428,30 +437,33 @@ def _rule_matches_filter(rule: JsonObject, rules_filter: list[str]) -> bool:
 # Formatting helpers
 # ---------------------------------------------------------------------------
 
+
 def _rules_to_csv_rows(rules: list[JsonObject]) -> list[JsonObject]:
     rows = []
     for r in rules:
         match = r.get("match") or {}
         action = r.get("action") or {}
         merchant_names = match.get("merchantNames") or []
-        rows.append({
-            "id": r.get("id", ""),
-            "enabled": r.get("enabled", True),
-            "name": r.get("name", ""),
-            "source": r.get("source", ""),
-            "confidence": r.get("confidence", ""),
-            "pendingMatchCount": r.get("pendingMatchCount", 0),
-            "merchantCount": len(merchant_names),
-            "matchMerchantName": match.get("merchantName", ""),
-            "matchMerchantPattern": match.get("merchantPattern", ""),
-            "matchMerchantNames": " | ".join(merchant_names[:5])
-            + (" …" if len(merchant_names) > 5 else ""),
-            "matchNeedsReview": match.get("needsReview", ""),
-            "actionSetCategory": action.get("setCategory", ""),
-            "actionClearNeedsReview": action.get("clearNeedsReview", ""),
-            "actionAddTag": action.get("addTag", ""),
-            "description": r.get("description", ""),
-        })
+        rows.append(
+            {
+                "id": r.get("id", ""),
+                "enabled": r.get("enabled", True),
+                "name": r.get("name", ""),
+                "source": r.get("source", ""),
+                "confidence": r.get("confidence", ""),
+                "pendingMatchCount": r.get("pendingMatchCount", 0),
+                "merchantCount": len(merchant_names),
+                "matchMerchantName": match.get("merchantName", ""),
+                "matchMerchantPattern": match.get("merchantPattern", ""),
+                "matchMerchantNames": " | ".join(merchant_names[:5])
+                + (" …" if len(merchant_names) > 5 else ""),
+                "matchNeedsReview": match.get("needsReview", ""),
+                "actionSetCategory": action.get("setCategory", ""),
+                "actionClearNeedsReview": action.get("clearNeedsReview", ""),
+                "actionAddTag": action.get("addTag", ""),
+                "description": r.get("description", ""),
+            }
+        )
     return rows
 
 
@@ -520,9 +532,7 @@ def _rule_md_block(r: JsonObject) -> list[str]:
             lines.append(f"- {' | '.join(parts)}")
         lines.append("")
     else:
-        lines.append(
-            f"- Match: `{single_merchant}`, needsReview={match.get('needsReview', '')}"
-        )
+        lines.append(f"- Match: `{single_merchant}`, needsReview={match.get('needsReview', '')}")
         lines.append("")
 
     lines += [

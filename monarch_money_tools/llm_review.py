@@ -16,6 +16,7 @@ Backends:
 Each batch contains up to MERCHANTS_PER_BATCH merchants. The full canonical
 category list (~71 names) is included in every batch prompt as context.
 """
+
 from __future__ import annotations
 
 import json
@@ -70,7 +71,8 @@ def build_llm_review_plan(
         return any(p in acct for p in P2P_ACCOUNT_PATTERNS)
 
     transactions: list[JsonObject] = [
-        t for t in (bundle.get("transactions") or [])
+        t
+        for t in (bundle.get("transactions") or [])
         if not t.get("isPending")
         and t.get("needsReview")
         and (t.get("categoryName") or "Uncategorized") in focus_categories
@@ -83,7 +85,7 @@ def build_llm_review_plan(
     merchant_groups = _group_by_merchant(transactions)
     merchant_list = sorted(merchant_groups.items(), key=lambda kv: -len(kv[1]))
     batches = [
-        merchant_list[i: i + MERCHANTS_PER_BATCH]
+        merchant_list[i : i + MERCHANTS_PER_BATCH]
         for i in range(0, len(merchant_list), MERCHANTS_PER_BATCH)
     ]
 
@@ -100,13 +102,9 @@ def build_llm_review_plan(
         }
 
     if backend == "api" and not config.anthropic_api_key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY is not set. Add it to .env, or use --backend cli."
-        )
+        raise RuntimeError("ANTHROPIC_API_KEY is not set. Add it to .env, or use --backend cli.")
 
-    resolved_model = model or (
-        DEFAULT_CLI_MODEL if backend == "cli" else config.anthropic_model
-    )
+    resolved_model = model or (DEFAULT_CLI_MODEL if backend == "cli" else config.anthropic_model)
 
     all_suggestions: list[JsonObject] = []
     for batch_idx, batch in enumerate(batches):
@@ -273,20 +271,22 @@ def _build_updates(
         for t in txn_by_merchant.get(merchant_key, []):
             if t.get("categoryName") == suggested_cat:
                 continue
-            updates.append({
-                "transactionId": str(t["id"]),
-                "date": t["date"],
-                "merchantName": t.get("merchantName") or "",
-                "accountName": t.get("accountName") or "",
-                "amount": float(t.get("signedAmount") or 0),
-                "currentCategory": t.get("categoryName") or "Uncategorized",
-                "suggestedCategory": suggested_cat,
-                "categoryId": category_id,
-                "confidence": round(confidence * 100) / 100,
-                "source": "llm_review",
-                "reason": reason,
-                "setNeedsReview": False,
-            })
+            updates.append(
+                {
+                    "transactionId": str(t["id"]),
+                    "date": t["date"],
+                    "merchantName": t.get("merchantName") or "",
+                    "accountName": t.get("accountName") or "",
+                    "amount": float(t.get("signedAmount") or 0),
+                    "currentCategory": t.get("categoryName") or "Uncategorized",
+                    "suggestedCategory": suggested_cat,
+                    "categoryId": category_id,
+                    "confidence": round(confidence * 100) / 100,
+                    "source": "llm_review",
+                    "reason": reason,
+                    "setNeedsReview": False,
+                }
+            )
 
     return sorted(updates, key=lambda u: (-u["confidence"], -abs(u["amount"])))
 
@@ -345,23 +345,23 @@ def _render_plan(plan: JsonObject) -> str:
 
     return f"""# LLM Review Plan
 
-- Generated: {plan['generatedAt']}
-- Backend: {s['backend']} / {s['model']}
-- Focus categories: {', '.join(s['focusCategories'])}
-- Input transactions: {s['inputTransactionCount']}
+- Generated: {plan["generatedAt"]}
+- Backend: {s["backend"]} / {s["model"]}
+- Focus categories: {", ".join(s["focusCategories"])}
+- Input transactions: {s["inputTransactionCount"]}
 - Updates proposed: {update_summary}
 
-## High Confidence ({s['highConfidenceCount']})
+## High Confidence ({s["highConfidenceCount"]})
 
 | Date | Merchant | Current | Suggested | Conf | Reason |
 | --- | --- | --- | --- | --- | --- |
-{rows(high) or '| _None_ | | | | | |'}
+{rows(high) or "| _None_ | | | | | |"}
 
-## Low Confidence ({s['lowConfidenceCount']})
+## Low Confidence ({s["lowConfidenceCount"]})
 
 | Date | Merchant | Current | Suggested | Conf | Reason |
 | --- | --- | --- | --- | --- | --- |
-{rows(low) or '| _None_ | | | | | |'}
+{rows(low) or "| _None_ | | | | | |"}
 """
 
 

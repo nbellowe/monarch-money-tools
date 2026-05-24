@@ -16,14 +16,13 @@ from .exporter import run_export
 from .llm_review import FOCUS_CATEGORIES, build_llm_review_plan
 from .monarch_api import (
     apply_transaction_updates,
-    create_monarch_rule,
     delete_monarch_rule,
     fetch_portfolio_allocation,
     fetch_transaction_rules,
     pull_from_monarch_api,
     tag_transactions,
-    update_monarch_rule,
 )
+from .recurring import run_recurring
 from .reporter import run_report
 from .review import (
     DEFAULT_CLEAR_REVIEW_CATEGORIES,
@@ -87,6 +86,30 @@ def report_command() -> None:
     """Render Markdown and CSV reports from the latest analysis."""
     run_report()
     console.print("[green]Reports written:[/] reports/latest")
+
+
+@app.command("recurring")
+def recurring_command(
+    min_occurrences: Annotated[
+        int,
+        typer.Option(
+            "--min-occurrences",
+            min=2,
+            help="Minimum transactions required before a recurring pattern qualifies.",
+        ),
+    ] = 2,
+) -> None:
+    """Detect recurring subscriptions, bills, transfers, and price drift."""
+    report = run_recurring(min_occurrences=min_occurrences)
+    summary = report["summary"]
+    console.print(
+        "[green]Recurring report written:[/] reports/latest/recurring.{md,csv} "
+        f"({summary['patternCount']} patterns: "
+        f"{summary['newCount']} new, "
+        f"{summary['cancelledCount']} cancelled, "
+        f"{summary['priceDriftCount']} price drift, "
+        f"{summary['trialConversionCount']} trial conversions)"
+    )
 
 
 @app.command("run")
@@ -375,8 +398,11 @@ def llm_review_command(
         {c.strip() for c in focus.split(",") if c.strip()} if focus else FOCUS_CATEGORIES
     )
     plan = build_llm_review_plan(
-        focus_categories=focus_categories, dry_run=dry_run,
-        backend=backend, model=model, skip_p2p=skip_p2p,
+        focus_categories=focus_categories,
+        dry_run=dry_run,
+        backend=backend,
+        model=model,
+        skip_p2p=skip_p2p,
     )
     if dry_run:
         console.print(
@@ -433,8 +459,7 @@ def apply_llm_review_command(
 
     plan = read_json(plan_path)
     updates = [
-        u for u in (plan.get("updates") or [])
-        if float(u.get("confidence", 0)) >= min_confidence
+        u for u in (plan.get("updates") or []) if float(u.get("confidence", 0)) >= min_confidence
     ]
     if category:
         updates = [u for u in updates if u.get("suggestedCategory") in category]
@@ -448,9 +473,7 @@ def apply_llm_review_command(
         raise typer.Exit(0)
 
     if not yes:
-        confirmed = typer.confirm(
-            f"Apply {len(updates)} LLM review updates to Monarch? Continue?"
-        )
+        confirmed = typer.confirm(f"Apply {len(updates)} LLM review updates to Monarch? Continue?")
         if not confirmed:
             raise typer.Abort()
 
@@ -529,9 +552,7 @@ def tag_reimbursements_command(
     txns = bundle.get("transactions") or []
     cats = bundle.get("categories") or []
 
-    other_income_id = next(
-        (str(c["id"]) for c in cats if c.get("name") == "Other Income"), None
-    )
+    other_income_id = next((str(c["id"]) for c in cats if c.get("name") == "Other Income"), None)
     if not other_income_id:
         console.print("[red]Other Income category not found in bundle.[/]")
         raise typer.Exit(1)
@@ -550,8 +571,7 @@ def tag_reimbursements_command(
     )
     if to_reclassify:
         console.print(
-            f"  [yellow]{len(to_reclassify)} need reclassification[/] "
-            "(Paychecks → Other Income)"
+            f"  [yellow]{len(to_reclassify)} need reclassification[/] (Paychecks → Other Income)"
         )
     console.print(f"  [cyan]{len(to_tag)} will be tagged[/] as [bold]{tag}[/]")
 
@@ -609,7 +629,7 @@ def portfolio_command(
     type_table.add_column("Count", justify="right")
     for t, val in sorted(by_type.items(), key=lambda x: -x[1]):
         count = sum(1 for h in holdings if (h.get("security") or {}).get("typeDisplay") == t)
-        type_table.add_row(t, f"${val:>12,.0f}", f"{val/total*100:.1f}%", str(count))
+        type_table.add_row(t, f"${val:>12,.0f}", f"{val / total * 100:.1f}%", str(count))
     console.print(type_table)
 
     top_table = Table(title=f"Top {top} Holdings")
@@ -628,7 +648,7 @@ def portfolio_command(
             (sec.get("name") or "?")[:40],
             sec.get("typeDisplay", "?"),
             f"${val:>12,.0f}",
-            f"{val/total*100:.2f}%",
+            f"{val / total * 100:.2f}%",
         )
     console.print(top_table)
 
@@ -784,7 +804,10 @@ def push_rule_command(
     ],
     rules_path: Annotated[
         str | None,
-        typer.Option("--rules-path", help="Path to rule-suggestions.json (default: data/rules/latest)."),
+        typer.Option(
+            "--rules-path",
+            help="Path to rule-suggestions.json (default: data/rules/latest).",
+        ),
     ] = None,
     yes: Annotated[
         bool,
@@ -870,8 +893,7 @@ def push_rule_command(
 
     new_rule = result.get("transactionRule", {})
     console.print(
-        f"[green]Created Monarch rule:[/] {new_rule.get('id')} "
-        f"(order {new_rule.get('order')})"
+        f"[green]Created Monarch rule:[/] {new_rule.get('id')} (order {new_rule.get('order')})"
     )
 
 

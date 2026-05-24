@@ -3,7 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from monarch_money_tools.storage import write_json
-from monarch_money_tools.workbench import load_latest_dataset, today_utc, write_investigation_artifacts
+from monarch_money_tools.workbench import (
+    load_latest_dataset,
+    today_utc,
+    write_investigation_artifacts,
+)
 
 
 def test_workbench_loads_scopes_and_writes_artifacts(tmp_path: Path) -> None:

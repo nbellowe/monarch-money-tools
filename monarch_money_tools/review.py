@@ -61,9 +61,7 @@ def build_clear_review_plan(categories: list[str] | None = None) -> JsonObject:
                 "setNeedsReview": False,
                 "confidence": 0.99,
                 "action": "clear_review",
-                "rationale": (
-                    f"{current_category} is in the reviewed trusted-category allowlist."
-                ),
+                "rationale": (f"{current_category} is in the reviewed trusted-category allowlist."),
             }
         )
 

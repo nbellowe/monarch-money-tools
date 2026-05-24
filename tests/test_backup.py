@@ -5,9 +5,7 @@ from pathlib import Path
 from monarch_money_tools.backup import create_pre_cleanup_backup, verify_pre_cleanup_backup
 
 
-def test_create_pre_cleanup_backup_excludes_recursive_backups(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_create_pre_cleanup_backup_excludes_recursive_backups(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     for path in [
         "data/raw/latest",

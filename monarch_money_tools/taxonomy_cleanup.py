@@ -17,6 +17,7 @@ Two evidence sources, applied in priority order:
 Output: data/cleanup/latest/{cleanup-plan.json, cleanup-plan.csv,
         cleanup-plan.md, cleanup-blocked.csv}
 """
+
 from __future__ import annotations
 
 from collections import Counter, defaultdict
@@ -127,27 +128,29 @@ def _build_migration_candidates(
         # Only mark ready when the target category exists in the correct target group.
         category_id = category_id_by_name_group.get((target_name, target_group), "")
 
-        candidates.append({
-            "transactionId": txn["id"],
-            "date": txn["date"],
-            "merchantName": txn["merchantName"],
-            "accountName": txn["accountName"],
-            "amount": txn["signedAmount"],
-            "currentCategory": txn["categoryName"],
-            "currentGroup": txn["groupName"],
-            "suggestedCategory": target_name,
-            "suggestedGroup": target_group,
-            "categoryId": category_id,
-            "confidence": MIGRATION_CONFIDENCE,
-            "source": "taxonomy_migration",
-            "reason": (
-                f"Taxonomy retirement: {txn['groupName']}/{txn['categoryName']}"
-                f" → {target_group}/{target_name}"
-            ),
-            "requiresNewCategory": not bool(category_id),
-            "note": remap.get("note") or "",
-            "setNeedsReview": False,
-        })
+        candidates.append(
+            {
+                "transactionId": txn["id"],
+                "date": txn["date"],
+                "merchantName": txn["merchantName"],
+                "accountName": txn["accountName"],
+                "amount": txn["signedAmount"],
+                "currentCategory": txn["categoryName"],
+                "currentGroup": txn["groupName"],
+                "suggestedCategory": target_name,
+                "suggestedGroup": target_group,
+                "categoryId": category_id,
+                "confidence": MIGRATION_CONFIDENCE,
+                "source": "taxonomy_migration",
+                "reason": (
+                    f"Taxonomy retirement: {txn['groupName']}/{txn['categoryName']}"
+                    f" → {target_group}/{target_name}"
+                ),
+                "requiresNewCategory": not bool(category_id),
+                "note": remap.get("note") or "",
+                "setNeedsReview": False,
+            }
+        )
 
     return sorted(candidates, key=lambda c: (c["suggestedCategory"], c["date"]))
 
@@ -164,9 +167,7 @@ def _build_merchant_consistency_candidates(
     virtual_remap = _build_virtual_remap(taxonomy)
 
     # Build profiles from reviewed, canonical-category transactions (post-virtual-remap).
-    profiles: dict[str, dict[str, Any]] = defaultdict(
-        lambda: {"count": 0, "categories": Counter()}
-    )
+    profiles: dict[str, dict[str, Any]] = defaultdict(lambda: {"count": 0, "categories": Counter()})
     for txn in transactions:
         if txn.get("needsReview"):
             continue
@@ -211,27 +212,29 @@ def _build_merchant_consistency_candidates(
         confidence = min(0.55 + dominant_share * 0.40, MAX_CONSISTENCY_CONFIDENCE)
         dominant_group = canonical_group_by_name.get(dominant_cat, "")
 
-        candidates.append({
-            "transactionId": tid,
-            "date": txn["date"],
-            "merchantName": txn["merchantName"],
-            "accountName": txn["accountName"],
-            "amount": txn["signedAmount"],
-            "currentCategory": current_cat,
-            "currentGroup": str(txn.get("groupName") or ""),
-            "suggestedCategory": dominant_cat,
-            "suggestedGroup": dominant_group,
-            "categoryId": category_id,
-            "confidence": round(confidence * 100) / 100,
-            "source": "merchant_history",
-            "reason": (
-                f"{profile['count']} reviewed transactions for this merchant are "
-                f"{round(dominant_share * 100)}% {dominant_cat}."
-            ),
-            "requiresNewCategory": False,
-            "note": "",
-            "setNeedsReview": False,
-        })
+        candidates.append(
+            {
+                "transactionId": tid,
+                "date": txn["date"],
+                "merchantName": txn["merchantName"],
+                "accountName": txn["accountName"],
+                "amount": txn["signedAmount"],
+                "currentCategory": current_cat,
+                "currentGroup": str(txn.get("groupName") or ""),
+                "suggestedCategory": dominant_cat,
+                "suggestedGroup": dominant_group,
+                "categoryId": category_id,
+                "confidence": round(confidence * 100) / 100,
+                "source": "merchant_history",
+                "reason": (
+                    f"{profile['count']} reviewed transactions for this merchant are "
+                    f"{round(dominant_share * 100)}% {dominant_cat}."
+                ),
+                "requiresNewCategory": False,
+                "note": "",
+                "setNeedsReview": False,
+            }
+        )
 
     return sorted(candidates, key=lambda c: (-float(c["confidence"]), -abs(float(c["amount"]))))
 
@@ -250,7 +253,7 @@ def _build_retirement_map(taxonomy: JsonObject) -> dict[tuple[str, str], dict]:
             continue
         slash = remap_to.index("/")
         target_group = remap_to[:slash]
-        target_name = remap_to[slash + 1:]
+        target_name = remap_to[slash + 1 :]
         result[(r["name"], r["group"])] = {
             "targetCategory": target_name,
             "targetGroup": target_group,
@@ -267,7 +270,7 @@ def _build_virtual_remap(taxonomy: JsonObject) -> dict[str, str]:
         if not remap_to:
             continue
         slash = remap_to.index("/")
-        target_name = remap_to[slash + 1:]
+        target_name = remap_to[slash + 1 :]
         result[r["name"]] = target_name
     return result
 
@@ -283,7 +286,7 @@ def _identify_required_new_categories(
             continue
         slash = remap_to.index("/")
         target_group = remap_to[:slash]
-        target_name = remap_to[slash + 1:]
+        target_name = remap_to[slash + 1 :]
         if (target_name, target_group) not in category_id_by_name_group:
             needed[target_name] = target_group
 

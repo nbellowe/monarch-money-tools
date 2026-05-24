@@ -6,9 +6,7 @@ from monarch_money_tools.storage import write_json
 from monarch_money_tools.taxonomy_cleanup import build_taxonomy_cleanup_plan
 
 
-def test_taxonomy_cleanup_builds_ready_migration_candidate(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_taxonomy_cleanup_builds_ready_migration_candidate(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     taxonomy = tmp_path / "data/taxonomy/canonical-taxonomy.yaml"
     taxonomy.parent.mkdir(parents=True)

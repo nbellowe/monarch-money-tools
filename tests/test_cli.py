@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from monarch_money_tools.cli import app
 from typer.testing import CliRunner
+
+from monarch_money_tools.cli import app
 
 
 def test_cli_run_writes_reports(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]

@@ -76,6 +76,7 @@ monarch apply-reviews --yes
 | `monarch run [CSV]` | Import, analyze, and report in one pass |
 | `monarch analyze` | Analyze normalized transactions for review and rule opportunities |
 | `monarch report` | Render Markdown and CSV reports from the latest analysis |
+| `monarch recurring` | Detect recurring subscriptions, bills, transfers, and price drift |
 | `monarch backup` | Back up data/ and reports/ before destructive operations |
 | `monarch doctor` | Check local setup and artifact availability |
 
