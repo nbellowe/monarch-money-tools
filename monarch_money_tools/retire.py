@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from .profile import UserProfile
 
@@ -9,7 +10,7 @@ _DEFAULT_SENTINEL = "/* __MONARCH_DEFAULT__ */ {}"
 _META_SENTINEL = "/* __MONARCH_META__ */ {}"
 
 
-def profile_to_html_defaults(profile: UserProfile) -> dict:
+def profile_to_html_defaults(profile: UserProfile) -> dict[str, Any]:
     """Map UserProfile → flat dict matching the HTML DEFAULT config keys."""
     p = profile
     spouse = p.people.spouse
@@ -62,7 +63,7 @@ def profile_to_html_defaults(profile: UserProfile) -> dict:
     }
 
 
-def _build_meta(profile: UserProfile) -> dict:
+def _build_meta(profile: UserProfile) -> dict[str, Any]:
     """Build the MONARCH_META object for HTML label personalization."""
     spouse = profile.people.spouse
     return {
@@ -78,6 +79,12 @@ def generate_retirement_html(profile: UserProfile, template_path: Path | None = 
     """Read template, inject DEFAULT + MONARCH_META, return complete HTML."""
     if template_path is None:
         template_path = Path(__file__).parent / "templates" / "retirement_simulator.html"
+    if not template_path.exists():
+        raise FileNotFoundError(
+            f"Retirement simulator template not found: {template_path}\n"
+            "Run `monarch retire` after the template has been installed, "
+            "or pass --output with a custom template path."
+        )
     html = template_path.read_text()
     defaults = profile_to_html_defaults(profile)
     meta = _build_meta(profile)
