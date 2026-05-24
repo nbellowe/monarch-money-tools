@@ -956,7 +956,7 @@ def retire_command(
         Path | None,
         typer.Option(
             "--output", help="Output HTML path (default: reports/retirement/simulation.html)."
-        ),  # noqa: E501
+        ),
     ] = None,
     open_browser: Annotated[
         bool,
@@ -974,7 +974,7 @@ def retire_command(
         profile = load_profile(profile_path)
     except ProfileNotFoundError as e:
         console.print(f"[red]{e}[/]")
-        raise typer.Exit(1) from e
+        raise typer.Exit(1) from None
 
     out_path = output or (retirement_dir() / "simulation.html")
     out_path.parent.mkdir(parents=True, exist_ok=True)
