@@ -923,6 +923,69 @@ def delete_monarch_rule_command(
     console.print(f"[green]Deleted rule:[/] {rule_id}")
 
 
+@app.command("init-profile")
+def init_profile_command(
+    force: Annotated[
+        bool,
+        typer.Option("--force", help="Overwrite existing profile.yaml without prompting."),
+    ] = False,
+) -> None:
+    """Generate a commented starter profile.yaml for retirement simulation."""
+    from .profile import PROFILE_TEMPLATE
+
+    dest = Path("profile.yaml")
+    if dest.exists() and not force:
+        confirmed = typer.confirm("profile.yaml already exists. Overwrite?")
+        if not confirmed:
+            raise typer.Abort()
+
+    dest.write_text(PROFILE_TEMPLATE)
+    console.print(f"[green]Created:[/] {dest}")
+    console.print(
+        "[cyan]Edit it with your details, then run `monarch retire` to generate your simulation.[/]"
+    )
+
+
+@app.command("retire")
+def retire_command(
+    profile_path: Annotated[
+        Path | None,
+        typer.Option("--profile", help="Path to profile.yaml (default: search cwd)."),
+    ] = None,
+    output: Annotated[
+        Path | None,
+        typer.Option(
+            "--output", help="Output HTML path (default: reports/retirement/simulation.html)."
+        ),  # noqa: E501
+    ] = None,
+    open_browser: Annotated[
+        bool,
+        typer.Option("--open", help="Open the generated HTML in your default browser."),
+    ] = False,
+) -> None:
+    """Generate a personalized retirement simulation HTML from profile.yaml."""
+    import webbrowser
+
+    from .paths import retirement_dir
+    from .profile import ProfileNotFoundError, load_profile
+    from .retire import generate_retirement_html
+
+    try:
+        profile = load_profile(profile_path)
+    except ProfileNotFoundError as e:
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(1) from e
+
+    out_path = output or (retirement_dir() / "simulation.html")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    html = generate_retirement_html(profile)
+    out_path.write_text(html)
+    console.print(f"[green]Retirement simulation written:[/] {out_path}")
+
+    if open_browser:
+        webbrowser.open(f"file://{out_path.absolute()}")
+
+
 def run_async(coro: Coroutine[object, object, T]) -> T:
     try:
         return asyncio.run(coro)
