@@ -1,0 +1,9 @@
+people:
+  primary:
+    name: Alex
+    current_age: 35
+    retire_at: 55
+portfolio:
+  total: 600000
+income:
+  primary_salary: 130000

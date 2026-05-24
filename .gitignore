@@ -2,6 +2,7 @@ data/
 reports/
 backups/
 .env
+/profile.yaml
 *.session
 .venv/
 __pycache__/
