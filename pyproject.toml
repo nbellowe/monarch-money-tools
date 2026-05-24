@@ -24,11 +24,11 @@ dev = [
   "ruff>=0.6",
 ]
 api = [
-    "aiohttp>=3.13",
-    "monarchmoney>=0.1.15",
+  "aiohttp>=3.13",
+  "monarchmoney>=0.1.15",
 ]
 llm = [
-    "anthropic>=0.40",
+  "anthropic>=0.40",
 ]
 docs = [
   "mkdocs-material>=9.5",
