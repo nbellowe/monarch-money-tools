@@ -1,6 +1,6 @@
 site_name: monarch-money-tools
 site_description: CLI for Monarch Money transaction categorization, cleanup, and rule management.
-site_url: https://nbellowe.github.io/monarch-money-tools/
+site_url: https://nbellowe.com/monarch-money-tools/
 repo_url: https://github.com/nbellowe/monarch-money-tools
 repo_name: nbellowe/monarch-money-tools
 docs_dir: docs
