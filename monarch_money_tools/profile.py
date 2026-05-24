@@ -94,6 +94,16 @@ class SimulationConfig(ProfileBaseModel):
     guardrails: GuardrailsConfig = Field(default_factory=GuardrailsConfig)
 
 
+class IncomePatternConfig(ProfileBaseModel):
+    pattern: str
+
+
+class CashflowConfig(ProfileBaseModel):
+    income_sources: list[IncomePatternConfig] = Field(default_factory=list)
+    reimbursement_patterns: list[IncomePatternConfig] = Field(default_factory=list)
+    transfer_patterns: list[IncomePatternConfig] = Field(default_factory=list)
+
+
 class UserProfile(ProfileBaseModel):
     people: PeopleConfig = Field(default_factory=PeopleConfig)
     portfolio: PortfolioConfig = Field(default_factory=PortfolioConfig)
@@ -104,6 +114,7 @@ class UserProfile(ProfileBaseModel):
     house: HouseConfig = Field(default_factory=HouseConfig)
     market: MarketConfig = Field(default_factory=MarketConfig)
     simulation: SimulationConfig = Field(default_factory=SimulationConfig)
+    cashflow: CashflowConfig = Field(default_factory=CashflowConfig)
 
 
 def find_profile(start: Path | None = None) -> Path | None:
@@ -206,8 +217,10 @@ simulation:
 
 
 __all__ = [
+    "CashflowConfig",
     "HouseConfig",
     "IncomeConfig",
+    "IncomePatternConfig",
     "KidsConfig",
     "MarketConfig",
     "PeopleConfig",

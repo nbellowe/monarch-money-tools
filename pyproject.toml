@@ -1,14 +1,14 @@
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "monarch-money-tools"
-version = "0.1.0"
+version = "0.0.1"
 description = "CLI for Monarch Money transaction categorization, cleanup, and rule management."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = "MIT"
 dependencies = [
   "pydantic>=2.8",
   "rich>=13.7",
@@ -24,11 +24,14 @@ dev = [
   "ruff>=0.6",
 ]
 api = [
-    "aiohttp>=3.13",
-    "monarchmoney>=0.1.15",
+  "aiohttp>=3.13",
+  "monarchmoney>=0.1.15",
 ]
 llm = [
-    "anthropic>=0.40",
+  "anthropic>=0.40",
+]
+docs = [
+  "mkdocs-material>=9.5",
 ]
 
 [project.scripts]
@@ -37,6 +40,7 @@ monarch-money-tools = "monarch_money_tools.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["monarch_money_tools*"]
 
 [tool.setuptools.package-data]
 monarch_money_tools = ["templates/*.html"]

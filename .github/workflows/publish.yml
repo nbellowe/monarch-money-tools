@@ -1,29 +1,30 @@
-name: CI
+name: Publish to PyPI
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    tags:
+      - "v*"
 
 jobs:
-  test:
+  publish:
     runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
     steps:
       - uses: actions/checkout@v4
-
       - uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
-
       - name: Install dependencies
         run: uv sync --extra dev --extra api --extra llm
-
       - name: Lint
         run: uv run ruff check .
-
       - name: Format check
         run: uv run ruff format --check .
-
       - name: Test
         run: uv run pytest
+      - name: Build
+        run: uv build
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1

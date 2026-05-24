@@ -16,15 +16,17 @@ Built for technical users who want to bulk-categorize transactions, apply determ
 
 ---
 
-## Install
+## Installation
 
 ```bash
-uv tool install .
+uv tool install monarch-money-tools
 ```
 
-Or for development (editable install with dev dependencies):
+For a development install from a cloned repo:
 
 ```bash
+git clone https://github.com/<your-username>/monarch-money-tools.git
+cd monarch-money-tools
 uv sync --extra dev --extra api --extra llm
 ```
 
@@ -71,12 +73,14 @@ monarch apply-reviews --yes
 
 | Command | Description |
 |---|---|
+| `monarch init` | Run the setup wizard for credentials, taxonomy, profile, and doctor checks |
 | `monarch pull` | Pull transaction data from Monarch via the unofficial API |
 | `monarch import [CSV]` | Import and normalize a Monarch transaction CSV export |
 | `monarch run [CSV]` | Import, analyze, and report in one pass |
 | `monarch analyze` | Analyze normalized transactions for review and rule opportunities |
 | `monarch report` | Render Markdown and CSV reports from the latest analysis |
 | `monarch recurring` | Detect recurring subscriptions, bills, transfers, and price drift |
+| `monarch income-overlay` | Classify transactions into salary, reimbursement, transfer, investment, or spending |
 | `monarch backup` | Back up data/ and reports/ before destructive operations |
 | `monarch doctor` | Check local setup and artifact availability |
 
@@ -97,8 +101,8 @@ monarch apply-reviews --yes
 | Command | Description |
 |---|---|
 | `monarch cleanup-plan` | Generate taxonomy migration and merchant-consistency candidates |
+| `monarch review-cleanup` | Interactively accept, reject, or skip cleanup candidates |
 | `monarch apply-cleanup` | Apply the latest cleanup plan to Monarch |
-| `monarch tag-reimbursements` | Reclassify Expensify/Navan reimbursements to Other Income |
 
 ### Rules
 

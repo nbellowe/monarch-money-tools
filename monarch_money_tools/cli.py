@@ -11,8 +11,10 @@ from rich.table import Table
 
 from .analyzer import run_analyze
 from .backup import create_pre_cleanup_backup, verify_pre_cleanup_backup
+from .cashflow import run_income_overlay
 from .doctor import collect_checks, has_python_project
 from .exporter import run_export
+from .init_wizard import run_init_wizard
 from .llm_review import FOCUS_CATEGORIES, build_llm_review_plan
 from .monarch_api import (
     apply_transaction_updates,
@@ -20,7 +22,6 @@ from .monarch_api import (
     fetch_portfolio_allocation,
     fetch_transaction_rules,
     pull_from_monarch_api,
-    tag_transactions,
 )
 from .recurring import run_recurring
 from .reporter import run_report
@@ -31,8 +32,9 @@ from .review import (
     build_clear_review_plan,
     build_review_plan,
 )
+from .review_cleanup import run_review_cleanup
 from .rules import apply_rules_plan, build_rule_suggestions
-from .taxonomy_cleanup import build_taxonomy_cleanup_plan
+from .taxonomy_cleanup import build_taxonomy_cleanup_plan, load_decisions
 
 app = typer.Typer(
     help="Local-first Monarch Money export analysis and planning CLI.",
@@ -112,6 +114,50 @@ def recurring_command(
     )
 
 
+@app.command("income-overlay")
+def income_overlay_command(
+    start: Annotated[
+        str | None,
+        typer.Option("--start", help="Start date filter (YYYY-MM-DD, inclusive)."),
+    ] = None,
+    end: Annotated[
+        str | None,
+        typer.Option("--end", help="End date filter (YYYY-MM-DD, inclusive)."),
+    ] = None,
+    profile_path: Annotated[
+        Path | None,
+        typer.Option("--profile", help="Path to profile.yaml (default: search cwd)."),
+    ] = None,
+) -> None:
+    """Classify transactions as salary, reimbursement, transfer, investment, or spending."""
+    from .profile import ProfileNotFoundError, find_profile, load_profile
+
+    profile = None
+    try:
+        resolved = profile_path or find_profile()
+        if resolved:
+            profile = load_profile(resolved)
+    except ProfileNotFoundError:
+        pass
+
+    result = run_income_overlay(profile, start=start, end=end)
+    summary = result["summary"]
+    console.print(
+        f"[green]Income overlay written:[/] data/cashflow/latest/ "
+        f"({summary['transactionCount']} transactions)"
+    )
+    if summary["manualReviewCount"]:
+        console.print(f"[yellow]{summary['manualReviewCount']} transactions need manual review.[/]")
+
+    table = Table(title="Classification Summary")
+    table.add_column("Classification")
+    table.add_column("Count", justify="right")
+    table.add_column("Total", justify="right")
+    for row in summary["byLabel"]:
+        table.add_row(row["label"], str(row["count"]), f"${row['total']:,.2f}")
+    console.print(table)
+
+
 @app.command("run")
 def run_command(
     csv_path: Annotated[
@@ -151,23 +197,52 @@ def backup_command() -> None:
 
 
 @app.command("cleanup-plan")
-def cleanup_plan_command() -> None:
+def cleanup_plan_command(
+    show_rejected: Annotated[
+        bool,
+        typer.Option("--show-rejected", help="Include rejected candidates in the summary count."),
+    ] = False,
+) -> None:
     """Generate deterministic taxonomy cleanup candidates (migrations + merchant history)."""
     plan = build_taxonomy_cleanup_plan()
     s = plan["summary"]
     cats = plan.get("categoriesToCreate") or []
+    decisions = load_decisions()
+    rejected_ids = {tid for tid, decision in decisions.items() if decision == "rejected"}
+    ready_count = int(s["readyCount"])
+    hidden_rejected = 0
+    if not show_rejected:
+        hidden_rejected = sum(
+            1
+            for candidate in plan.get("candidates", [])
+            if candidate["transactionId"] in rejected_ids
+            and not candidate.get("requiresNewCategory")
+        )
+        ready_count -= hidden_rejected
+
     console.print(
         "[green]Cleanup plan written:[/] data/cleanup/latest "
         f"({s['taxonomyMigrationCount']} taxonomy migrations, "
         f"{s['merchantConsistencyCount']} merchant consistency, "
-        f"{s['readyCount']} ready, {s['blockedCount']} blocked)"
+        f"{ready_count} ready, {s['blockedCount']} blocked)"
     )
+    if hidden_rejected:
+        console.print(
+            f"[dim]{hidden_rejected} rejected candidates hidden. "
+            "Use --show-rejected to include them.[/]"
+        )
     if cats:
         console.print(
             f"[yellow]Create these {len(cats)} categories in Monarch first "
             f"before applying blocked candidates:[/] "
             + ", ".join(f"{c['group']}/{c['name']}" for c in cats)
         )
+
+
+@app.command("review-cleanup")
+def review_cleanup_command() -> None:
+    """Interactively accept, reject, or skip taxonomy cleanup candidates one at a time."""
+    run_review_cleanup()
 
 
 @app.command("apply-cleanup")
@@ -194,6 +269,10 @@ def apply_cleanup_command(
             help="Skip candidates that require a new category (default: True).",
         ),
     ] = True,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Show what would be applied without calling the API."),
+    ] = False,
 ) -> None:
     """Apply the latest taxonomy cleanup plan to Monarch."""
     from .paths import cleanup_latest_dir
@@ -207,6 +286,13 @@ def apply_cleanup_command(
     plan = read_json(plan_path)
     candidates = list(plan.get("candidates") or [])
 
+    decisions = load_decisions()
+    if decisions:
+        candidates = [
+            candidate
+            for candidate in candidates
+            if decisions.get(candidate["transactionId"]) == "accepted"
+        ]
     if skip_blocked:
         candidates = [c for c in candidates if not c.get("requiresNewCategory")]
     if source:
@@ -223,6 +309,26 @@ def apply_cleanup_command(
                 "See `data/cleanup/latest/cleanup-blocked.csv`."
             )
         raise typer.Exit(0)
+
+    if dry_run:
+        table = Table(title=f"Dry run - {len(candidates)} updates", width=100)
+        table.add_column("Merchant")
+        table.add_column("Current Category")
+        table.add_column("Suggested")
+        table.add_column("Confidence", justify="right")
+        table.add_column("Source")
+        for candidate in candidates[:50]:
+            table.add_row(
+                candidate["merchantName"],
+                candidate["currentCategory"],
+                candidate["suggestedCategory"],
+                f"{float(candidate.get('confidence', 0)):.0%}",
+                candidate.get("source", ""),
+            )
+        console.print(table)
+        if len(candidates) > 50:
+            console.print(f"[dim]... and {len(candidates) - 50} more[/]")
+        return
 
     if not yes:
         confirmed = typer.confirm(
@@ -319,8 +425,45 @@ def apply_clear_reviews_command(
         int | None,
         typer.Option("--limit", min=1, help="Apply at most this many planned clears."),
     ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Show what would be applied without calling the API."),
+    ] = False,
 ) -> None:
     """Apply the latest reviewed clear-review plan to Monarch."""
+    from .paths import review_latest_dir
+    from .storage import read_json
+
+    plan_path = review_latest_dir() / "clear-review-plan.json"
+    if not plan_path.exists():
+        console.print("[red]No clear-review plan found.[/] Run `monarch plan-clear-reviews` first.")
+        raise typer.Exit(1)
+
+    plan = read_json(plan_path)
+    updates = list(plan.get("updates") or [])
+    if limit is not None:
+        updates = updates[:limit]
+
+    if not updates:
+        console.print("[yellow]No updates to apply.[/]")
+        raise typer.Exit(0)
+
+    if dry_run:
+        table = Table(title=f"Dry run - {len(updates)} clears")
+        table.add_column("Merchant")
+        table.add_column("Category")
+        table.add_column("Account")
+        for update in updates[:50]:
+            table.add_row(
+                update["merchantName"],
+                update["currentCategory"],
+                update.get("accountName", ""),
+            )
+        console.print(table)
+        if len(updates) > 50:
+            console.print(f"[dim]... and {len(updates) - 50} more[/]")
+        return
+
     if not yes:
         confirmed = typer.confirm(
             "This will clear Needs Review through the unofficial API. Continue?"
@@ -342,8 +485,47 @@ def apply_reviews_command(
         int | None,
         typer.Option("--limit", min=1, help="Apply at most this many planned updates."),
     ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Show what would be applied without calling the API."),
+    ] = False,
 ) -> None:
     """Apply the latest planned transaction updates to Monarch."""
+    from .paths import review_latest_dir
+    from .storage import read_json
+
+    plan_path = review_latest_dir() / "review-plan.json"
+    if not plan_path.exists():
+        console.print("[red]No review plan found.[/] Run `monarch plan-reviews` first.")
+        raise typer.Exit(1)
+
+    plan = read_json(plan_path)
+    updates = list(plan.get("updates") or [])
+    if limit is not None:
+        updates = updates[:limit]
+
+    if not updates:
+        console.print("[yellow]No updates to apply.[/]")
+        raise typer.Exit(0)
+
+    if dry_run:
+        table = Table(title=f"Dry run - {len(updates)} updates")
+        table.add_column("Merchant")
+        table.add_column("Current Category")
+        table.add_column("Suggested")
+        table.add_column("Confidence", justify="right")
+        for update in updates[:50]:
+            table.add_row(
+                update["merchantName"],
+                update["currentCategory"],
+                update["suggestedCategory"],
+                f"{float(update.get('confidence', 0)):.0%}",
+            )
+        console.print(table)
+        if len(updates) > 50:
+            console.print(f"[dim]... and {len(updates) - 50} more[/]")
+        return
+
     if not yes:
         confirmed = typer.confirm(
             "This will update Monarch transactions through the unofficial API. Continue?"
@@ -447,6 +629,10 @@ def apply_llm_review_command(
             help="Skip updates for this merchant name (repeatable).",
         ),
     ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Show what would be applied without calling the API."),
+    ] = False,
 ) -> None:
     """Apply the latest LLM review plan to Monarch."""
     from .paths import review_latest_dir
@@ -471,6 +657,24 @@ def apply_llm_review_command(
     if not updates:
         console.print(f"[yellow]No updates meet min-confidence {min_confidence}.[/]")
         raise typer.Exit(0)
+
+    if dry_run:
+        table = Table(title=f"Dry run - {len(updates)} updates")
+        table.add_column("Merchant")
+        table.add_column("Current Category")
+        table.add_column("Suggested")
+        table.add_column("Confidence", justify="right")
+        for update in updates[:50]:
+            table.add_row(
+                update["merchantName"],
+                update["currentCategory"],
+                update["suggestedCategory"],
+                f"{float(update.get('confidence', 0)):.0%}",
+            )
+        console.print(table)
+        if len(updates) > 50:
+            console.print(f"[dim]... and {len(updates) - 50} more[/]")
+        return
 
     if not yes:
         confirmed = typer.confirm(f"Apply {len(updates)} LLM review updates to Monarch? Continue?")
@@ -530,73 +734,6 @@ def bulk_clear_reviews_command(
 
     result = run_async(apply_clear_review_plan(limit=limit))
     console.print(f"[green]Cleared review flag on:[/] {result['requestedCount']} transactions")
-
-
-@app.command("tag-reimbursements")
-def tag_reimbursements_command(
-    yes: Annotated[
-        bool,
-        typer.Option("--yes", help="Apply without an interactive prompt."),
-    ] = False,
-    tag: Annotated[
-        str,
-        typer.Option("--tag", help="Tag name to apply."),
-    ] = "expense-reimbursement",
-) -> None:
-    """Reclassify Expensify/Navan reimbursements to Other Income and tag them."""
-    from .monarch_api import apply_transaction_updates
-    from .paths import normalized_latest_dir
-    from .storage import read_json
-
-    bundle = read_json(normalized_latest_dir() / "bundle.json")
-    txns = bundle.get("transactions") or []
-    cats = bundle.get("categories") or []
-
-    other_income_id = next((str(c["id"]) for c in cats if c.get("name") == "Other Income"), None)
-    if not other_income_id:
-        console.print("[red]Other Income category not found in bundle.[/]")
-        raise typer.Exit(1)
-
-    def is_reimbursement(t: dict) -> bool:
-        name = (t.get("merchantName") or "").lower()
-        amount = float(t.get("signedAmount") or 0)
-        return ("expensify" in name or "navan" in name) and amount > 0
-
-    reimbursements = [t for t in txns if is_reimbursement(t)]
-    to_reclassify = [t for t in reimbursements if t.get("categoryName") != "Other Income"]
-    to_tag = reimbursements
-
-    console.print(
-        f"Found [bold]{len(reimbursements)}[/] Expensify/Navan reimbursement transactions."
-    )
-    if to_reclassify:
-        console.print(
-            f"  [yellow]{len(to_reclassify)} need reclassification[/] (Paychecks → Other Income)"
-        )
-    console.print(f"  [cyan]{len(to_tag)} will be tagged[/] as [bold]{tag}[/]")
-
-    if not yes:
-        confirmed = typer.confirm("Apply reclassification and tagging via the unofficial API?")
-        if not confirmed:
-            raise typer.Abort()
-
-    if to_reclassify:
-        updates = [
-            {
-                "transactionId": t["id"],
-                "merchantName": t["merchantName"],
-                "suggestedCategory": "Other Income",
-                "categoryId": other_income_id,
-                "setNeedsReview": False,
-            }
-            for t in to_reclassify
-        ]
-        run_async(apply_transaction_updates(updates))
-        console.print(f"[green]Reclassified {len(to_reclassify)} transactions → Other Income[/]")
-
-    tag_ids = [str(t["id"]) for t in to_tag]
-    run_async(tag_transactions(tag_ids, tag))
-    console.print(f"[green]Tagged {len(to_tag)} transactions:[/] {tag}")
 
 
 @app.command("portfolio")
@@ -891,7 +1028,7 @@ def push_rule_command(
         console.print(f"[red]API error:[/] {errors}")
         raise typer.Exit(1)
 
-    new_rule = result.get("transactionRule", {})
+    new_rule = cast(dict[str, Any], result.get("transactionRule") or {})
     console.print(
         f"[green]Created Monarch rule:[/] {new_rule.get('id')} (order {new_rule.get('order')})"
     )
@@ -921,6 +1058,17 @@ def delete_monarch_rule_command(
         raise typer.Exit(1)
 
     console.print(f"[green]Deleted rule:[/] {rule_id}")
+
+
+@app.command("init")
+def init_command(
+    yes: Annotated[
+        bool,
+        typer.Option("--yes", help="Non-interactive: use existing env values, skip prompts."),
+    ] = False,
+) -> None:
+    """Interactive setup wizard: credentials, connection test, taxonomy check, profile, doctor."""
+    run_init_wizard(yes=yes)
 
 
 @app.command("init-profile")

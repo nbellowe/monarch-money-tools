@@ -1,0 +1,72 @@
+# sample-profile.yaml — fictional profile for Alex & Jordan
+# Used to generate the docs site sample retirement simulation.
+# All values are made up and not representative of real advice.
+
+people:
+  primary:
+    name: Alex
+    current_age: 35
+    retire_at: 52
+
+  spouse:
+    name: Jordan
+    current_age: 33
+    retire_at: 50
+
+portfolio:
+  total: 850000
+
+income:
+  primary_salary: 185000
+  primary_rsus_annual: 60000
+  spouse_salary: 140000
+  spouse_rsus_annual: 40000
+  rsu_vesting_years: 4
+  income_growth_real: 0.02
+  effective_income_tax: 0.30
+
+spending:
+  base_annual: 130000
+  retirement_fraction: 0.80
+  growth_real: 0.005
+  healthcare_annual: 20000
+  medicare_age: 65
+  flexible: true
+  floor: 0.75
+  ceiling: 1.20
+
+kids:
+  count: 2
+  first_kid_year: 2
+  childcare_annual: 30000
+  k12_annual: 8000
+  college_contribution: 75000
+
+social_security:
+  primary_annual: 28000
+  spouse_annual: 22000
+  claim_age: 67
+  reduction_factor: 0.85
+
+house:
+  upgrade: true
+  upgrade_year: 3
+  upgrade_additional_cost: 500000
+
+market:
+  equity_return_nominal: 0.09
+  equity_std: 0.17
+  bond_return_nominal: 0.04
+  inflation: 0.03
+  equity_fraction_working: 0.85
+  equity_fraction_retired: 0.60
+  use_historical_returns: false
+
+simulation:
+  swr: 0.04
+  years: 70
+  mc_runs: 500
+  guardrails:
+    upper: 0.05
+    lower: 0.03
+    cut: 0.10

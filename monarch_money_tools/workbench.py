@@ -1,3 +1,10 @@
+"""Internal investigation helpers, not part of the stable CLI surface.
+
+Import functions here interactively, such as in a Python REPL or notebook, to
+explore normalized transaction data. These helpers are not intended for
+end-user scripting.
+"""
+
 from __future__ import annotations
 
 import csv

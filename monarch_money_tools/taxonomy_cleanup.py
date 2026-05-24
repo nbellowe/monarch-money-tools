@@ -38,6 +38,24 @@ MIN_CONSISTENCY_SHARE = 0.80
 MAX_CONSISTENCY_CONFIDENCE = 0.95
 
 
+def load_decisions() -> dict[str, str]:
+    """Load cleanup review decisions from the latest cleanup output directory."""
+    path = cleanup_latest_dir() / "decisions.json"
+    if not path.exists():
+        return {}
+    raw = read_json(path)
+    return {str(key): str(value) for key, value in dict(raw).items()}
+
+
+def save_decision(transaction_id: str, decision: str) -> None:
+    """Persist one cleanup review decision immediately."""
+    if decision not in {"accepted", "rejected", "skipped"}:
+        raise ValueError("decision must be accepted, rejected, or skipped")
+    decisions = load_decisions()
+    decisions[transaction_id] = decision
+    write_json(cleanup_latest_dir() / "decisions.json", decisions)
+
+
 def build_taxonomy_cleanup_plan(taxonomy_path: Path | None = None) -> JsonObject:
     if taxonomy_path is None:
         taxonomy_path = taxonomy_dir() / "canonical-taxonomy.yaml"
@@ -297,8 +315,11 @@ def _identify_required_new_categories(
 
 
 def _write_cleanup_plan(plan: JsonObject) -> None:
+    existing_decisions = load_decisions()
     reset_dir(cleanup_latest_dir())
     write_json(cleanup_latest_dir() / "cleanup-plan.json", plan)
+    if existing_decisions:
+        write_json(cleanup_latest_dir() / "decisions.json", existing_decisions)
 
     all_candidates = plan["candidates"]
     ready = [c for c in all_candidates if not c.get("requiresNewCategory")]
