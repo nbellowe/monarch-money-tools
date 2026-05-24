@@ -30,6 +30,9 @@ api = [
 llm = [
     "anthropic>=0.40",
 ]
+docs = [
+  "mkdocs-material>=9.5",
+]
 
 [project.scripts]
 monarch = "monarch_money_tools.cli:app"
