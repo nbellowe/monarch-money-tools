@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Retirement Simulator</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:       #0d1117;
+    --surface:  #161b22;
+    --surface2: #21262d;
+    --border:   #30363d;
+    --text:     #e6edf3;
+    --muted:    #8b949e;
+    --accent:   #a78bfa;
+    --accent2:  #7c3aed;
+    --success:  #3fb950;
+    --warn:     #d29922;
+    --danger:   #f85149;
+    --sidebar:  360px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ── Header ─────────────────────────────────────── */
+  .header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-title { font-size: 18px; font-weight: 700; color: var(--text); }
+  .header-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .header-badge {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--muted);
+  }
+
+  /* ── Layout ─────────────────────────────────────── */
+  .layout {
+    display: grid;
+    grid-template-columns: var(--sidebar) 1fr;
+    height: calc(100vh - 57px);
+  }
+
+  /* ── Sidebar ─────────────────────────────────────── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 40px;
+  }
+  .sidebar::-webkit-scrollbar { width: 5px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .sidebar-section {
+    border-bottom: 1px solid var(--border);
+    padding: 0;
+  }
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted);
+    transition: color 0.15s;
+  }
+  .section-header:hover { color: var(--text); }
+  .section-header .chevron {
+    width: 16px; height: 16px; transition: transform 0.2s;
+    opacity: 0.5;
+  }
+  .section-header.open .chevron { transform: rotate(180deg); }
+  .section-body { padding: 0 16px 14px; }
+  .section-body.hidden { display: none; }
+
+  /* Presets */
+  .preset-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 6px; padding: 10px 16px 14px;
+  }
+  .preset-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 8px;
+    color: var(--muted); font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .preset-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(167,139,250,0.08); }
+
+  /* Controls */
+  .control-group { margin-bottom: 12px; }
+  .control-group:last-child { margin-bottom: 0; }
+  .control-label {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 5px; font-size: 12px; color: var(--muted);
+  }
+  .control-val { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  input[type=range] {
+    width: 100%; height: 4px;
+    appearance: none; -webkit-appearance: none;
+    background: var(--border); border-radius: 2px;
+    outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none; -webkit-appearance: none;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--surface);
+    box-shadow: 0 0 0 2px var(--accent2);
+    transition: transform 0.1s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  input[type=range]:active::-webkit-slider-thumb { transform: scale(1.1); }
+
+  /* Toggle */
+  .toggle-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 10px;
+  }
+  .toggle-label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--text); cursor: pointer;
+  }
+  input[type=checkbox] { display: none; }
+  .toggle-switch {
+    width: 36px; height: 20px; border-radius: 10px;
+    background: var(--surface2); border: 1px solid var(--border);
+    position: relative; transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle-switch::after {
+    content: ''; position: absolute;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--muted); top: 2px; left: 2px;
+    transition: all 0.2s;
+  }
+  input[type=checkbox]:checked + .toggle-switch { background: var(--accent2); border-color: var(--accent); }
+  input[type=checkbox]:checked + .toggle-switch::after { background: white; left: 18px; }
+
+  .guardrails-panel {
+    padding-top: 8px; border-top: 1px solid var(--border);
+    margin-top: 4px;
+    transition: opacity 0.2s;
+  }
+  .guardrails-panel.dim { opacity: 0.3; pointer-events: none; }
+
+  /* ── Main content ─────────────────────────────── */
+  .main {
+    overflow-y: auto; overflow-x: hidden;
+    padding: 20px 24px 40px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .main::-webkit-scrollbar { width: 6px; }
+  .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Metric Cards */
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+  }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    transition: border-color 0.2s;
+  }
+  .metric-card:hover { border-color: var(--accent2); }
+  .metric-label { font-size: 11px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metric-value { font-size: 26px; font-weight: 700; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+  .metric-sub { font-size: 11px; color: var(--muted); }
+
+  /* Chart Cards */
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .chart-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .chart-title { font-size: 15px; font-weight: 600; }
+  .chart-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .chart-legend {
+    display: flex; gap: 14px; align-items: center;
+    font-size: 11px; color: var(--muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-line {
+    width: 20px; height: 3px; border-radius: 2px;
+    display: inline-block;
+  }
+  .legend-band {
+    width: 20px; height: 10px; border-radius: 2px;
+    display: inline-block;
+  }
+
+  /* Two column charts row */
+  .charts-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  }
+
+  /* Scenario comparison */
+  .scenario-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .scenario-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; transition: border-color 0.15s;
+  }
+  .scenario-card:hover { border-color: var(--border); }
+  .scenario-name { font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+  .scenario-stat { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
+  .scenario-stat-label { color: var(--muted); }
+  .scenario-stat-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .scenario-survival {
+    font-size: 20px; font-weight: 700; margin-bottom: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .survival-bar {
+    height: 3px; background: var(--border); border-radius: 2px; margin-bottom: 8px;
+  }
+  .survival-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
+
+  /* Spending impact panel */
+  .guardrails-insight {
+    display: flex; gap: 16px; align-items: center;
+    background: rgba(167,139,250,0.06); border: 1px solid rgba(167,139,250,0.2);
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;
+    font-size: 12px;
+  }
+  .guardrails-insight .g-label { color: var(--muted); }
+  .guardrails-insight .g-diff { font-size: 18px; font-weight: 700; color: var(--success); }
+  .guardrails-insight.hidden { display: none; }
+
+  /* Loading spinner */
+  .computing {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 14px;
+    font-size: 12px; color: var(--muted);
+    display: none; align-items: center; gap: 8px;
+  }
+  .computing.show { display: flex; }
+  .spinner {
+    width: 14px; height: 14px; border: 2px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Annotations drawn manually */
+  .chart-annotation-label {
+    position: absolute;
+    font-size: 10px;
+    color: var(--warn);
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">Retirement Simulator</div>
+    <div class="header-sub" id="header-sub">Person 1 · Real (inflation-adjusted) dollars</div>
+  </div>
+  <div class="header-badge" id="mc-badge">300 Monte Carlo runs</div>
+</div>
+
+<div class="layout">
+
+<!-- ── SIDEBAR ─────────────────────────────────────── -->
+<aside class="sidebar">
+
+  <!-- Preset Scenarios -->
+  <div class="sidebar-section">
+    <div class="section-header open" data-section="presets">
+      <span>Quick Scenarios</span>
+      <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4,6 8,10 12,6"/>
+      </svg>
+    </div>
+    <div class="section-body" id="sb-presets">
+      <div class="preset-grid" id="preset-grid"></div>
+    </div>
+  </div>
+
+  <!-- Ages & Retirement -->
+  <div class="sidebar-section">
+    <div class="section-header open" data-section="ages">
+      <span>Ages &amp; Retirement</span>
+      <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4,6 8,10 12,6"/>
+      </svg>
+    </div>
+    <div class="section-body" id="sb-ages">
+      <div class="control-group">
+        <div class="control-label"><span><span data-person1>Person 1</span> retires at age</span><span class="control-val" id="v-retireNathanAge">55</span></div>
+        <input type="range" id="retireNathanAge" min="35" max="65" step="1" value="55" />
+      </div>
+      <div class="control-group" data-spouse-only>
+        <div class="control-label"><span><span data-person2>Person 2</span> retires at age</span><span class="control-val" id="v-retireTanyaAge">57</span></div>
+        <input type="range" id="retireTanyaAge" min="35" max="65" step="1" value="57" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Portfolio -->
+  <div class="sidebar-section">
+    <div class="section-header open" data-section="portfolio">
+      <span>Portfolio</span>
+      <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4,6 8,10 12,6"/>
+      </svg>
+    </div>
+    <div class="section-body" id="sb-portfolio">
+      <div class="control-group">
+        <div class="control-label"><span>Starting portfolio</span><span class="control-val" id="v-portfolioTotal">$10.4M</span></div>
+        <input type="range" id="portfolioTotal" min="0" max="20000000" step="100000" value="500000" />
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span>Safe withdrawal rate <span style="color:var(--muted);font-weight:400">(planning target only)</span></span><span class="control-val" id="v-swr">4.0%</span></div>
+        <input type="range" id="swr" min="0.025" max="0.06" step="0.0025" value="0.04" />
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Sets the "Required to Retire" threshold — not actual spending. Use the Spending sliders to change what you withdraw.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Income -->
+  <div class="sidebar-section">
+    <div class="section-header" data-section="income">
+      <span>Income</span>
+      <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4,6 8,10 12,6"/>
+      </svg>
+    </div>
+    <div class="section-body hidden" id="sb-income">
+      <div class="control-group">
+        <div class="control-label"><span><span data-person1>Person 1</span> base salary</span><span class="control-val" id="v-nathanSalaryBase">$120k</span></div>
+        <input type="range" id="nathanSalaryBase" min="0" max="600000" step="10000" value="120000" />
+      </div>
+      <div class="control-group" data-spouse-only>
+        <div class="control-label"><span><span data-person2>Person 2</span> base salary</span><span class="control-val" id="v-tanyaSalaryBase">$0</span></div>
+        <input type="range" id="tanyaSalaryBase" min="0" max="600000" step="10000" value="0" />
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span><span data-person1>Person 1</span> RSUs / year</span><span class="control-val" id="v-nathanRsuAnnual">$0</span></div>
+        <input type="range" id="nathanRsuAnnual" min="0" max="600000" step="10000" value="0" />
+      </div>
+      <div class="control-group" data-spouse-only>
+        <div class="control-label"><span><span data-person2>Person 2</span> RSUs / year</span><span class="control-val" id="v-tanyaRsuAnnual">$0</span></div>
+        <input type="range" id="tanyaRsuAnnual" min="0" max="600000" step="10000" value="0" />
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span>Effective tax rate</span><span class="control-val" id="v-effectiveIncomeTax">28%</span></div>
+        <input type="range" id="effectiveIncomeTax" min="0.10" max="0.50" step="0.01" value="0.28" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Spending -->
+  <div class="sidebar-section">
+    <div class="section-header open" data-section="spending">
+      <span>Spending</span>
+      <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4,6 8,10 12,6"/>
+      </svg>
+    </div>
+    <div class="section-body" id="sb-spending">
+      <div class="control-group">
+        <div class="control-label"><span>Annual spending (working years)</span><span class="control-val" id="v-baseSpending">$150k</span></div>
+        <input type="range" id="baseSpending" min="50000" max="400000" step="5000" value="150000" />
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span>Retirement spending (% of above)</span><span class="control-val" id="v-retirementSpendingFraction">85%</span></div>
+        <input type="range" id="retirementSpendingFraction" min="0.50" max="1.30" step="0.05" value="0.85" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Kids -->
+  <div class="sidebar-section">
+    <div class="section-header open" data-section="kids">
+      <span>Kids</span>
+      <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4,6 8,10 12,6"/>
+      </svg>
+    </div>
+    <div class="section-body" id="sb-kids">
+      <div class="control-group">
+        <div class="control-label"><span>Number of kids</span><span class="control-val" id="v-numKids">1</span></div>
+        <input type="range" id="numKids" min="0" max="3" step="1" value="1" />
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span>Childcare / kid / year (ages 0–5)</span><span class="control-val" id="v-childcareAnnual">$25k</span></div>
+        <input type="range" id="childcareAnnual" min="0" max="60000" step="1000" value="25000" />
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span>K–12 incremental / kid / year</span><span class="control-val" id="v-k12Annual">$5k</span></div>
+        <input type="range" id="k12Annual" min="0" max="30000" step="500" value="5000" />
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span>College contribution / kid</span><span class="control-val" id="v-collegeContribution">$50k</span></div>
+        <input type="range" id="collegeContribution" min="0" max="200000" step="5000" value="50000" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Healthcare -->
+  <div class="sidebar-section">
+    <div class="section-header" data-section="healthcare">
+      <span>Healthcare</span>
+      <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4,6 8,10 12,6"/>
+      </svg>
+    </div>
+    <div class="section-body hidden" id="sb-healthcare">
+      <div class="control-group">
+        <div class="control-label"><span>Annual cost pre-Medicare (per yr)</span><span class="control-val" id="v-healthcareAnnual">$24k</span></div>
+        <input type="range" id="healthcareAnnual" min="0" max="60000" step="1000" value="24000" />
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span>Medicare starts at age</span><span class="control-val" id="v-medicareAge">65</span></div>
+        <input type="range" id="medicareAge" min="60" max="70" step="1" value="65" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Social Security -->
+  <div class="sidebar-section">
+    <div class="section-header" data-section="ss">
+      <span>Social Security</span>
+      <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4,6 8,10 12,6"/>
+      </svg>
+    </div>
+    <div class="section-body hidden" id="sb-ss">
+      <div class="control-group">
+        <div class="control-label"><span><span data-person1>Person 1</span> SS benefit / year</span><span class="control-val" id="v-ssNathanAnnual">$20k</span></div>
+        <input type="range" id="ssNathanAnnual" min="0" max="80000" step="1000" value="20000" />
+      </div>
+      <div class="control-group" data-spouse-only>
+        <div class="control-label"><span><span data-person2>Person 2</span> SS benefit / year</span><span class="control-val" id="v-ssTanyaAnnual">$0</span></div>
+        <input type="range" id="ssTanyaAnnual" min="0" max="80000" step="1000" value="0" />
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span>Claim age</span><span class="control-val" id="v-ssClaimAge">67</span></div>
+        <input type="range" id="ssClaimAge" min="62" max="70" step="1" value="67" />
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span>SS income as % of estimate (uncertainty)</span><span class="control-val" id="v-ssReductionFactor">100%</span></div>
+        <input type="range" id="ssReductionFactor" min="0.50" max="1.00" step="0.05" value="1.00" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Market -->
+  <div class="sidebar-section">
+    <div class="section-header" data-section="market">
+      <span>Market &amp; Returns</span>
+      <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4,6 8,10 12,6"/>
+      </svg>
+    </div>
+    <div class="section-body hidden" id="sb-market">
+      <!-- Return mode toggle -->
+      <div class="toggle-row" style="margin-bottom:10px">
+        <label class="toggle-label">
+          <input type="checkbox" id="useHistoricalReturns" />
+          <span class="toggle-switch"></span>
+          Use historical S&amp;P 500 data (1928–2023)
+        </label>
+      </div>
+      <div id="hist-note" style="display:none;font-size:11px;color:var(--muted);margin-bottom:10px;padding:8px;background:rgba(167,139,250,0.07);border-radius:6px;border:1px solid rgba(167,139,250,0.2)">
+        Bootstraps from 96 actual annual real returns. Return sliders ignored for equity. Captures fat tails and real crash frequency.
+      </div>
+      <div id="mc-sliders">
+        <div class="control-group">
+          <div class="control-label"><span>Equity return (nominal)</span><span class="control-val" id="v-equityReturnNominal">9.0%</span></div>
+          <input type="range" id="equityReturnNominal" min="0.04" max="0.14" step="0.005" value="0.09" />
+        </div>
+        <div class="control-group">
+          <div class="control-label"><span>Equity volatility (σ) — MC only</span><span class="control-val" id="v-equityStd">17%</span></div>
+          <input type="range" id="equityStd" min="0.05" max="0.35" step="0.01" value="0.17" />
+        </div>
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span>Bond return (nominal)</span><span class="control-val" id="v-bondReturnNominal">4.0%</span></div>
+        <input type="range" id="bondReturnNominal" min="0.00" max="0.08" step="0.005" value="0.04" />
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span>Inflation</span><span class="control-val" id="v-inflation">3.0%</span></div>
+        <input type="range" id="inflation" min="0.00" max="0.10" step="0.005" value="0.03" />
+        <div id="real-return-note" style="font-size:11px;color:var(--muted);margin-top:4px">
+          Real equity ≈ <span id="derived-eq-real">6.0%</span> · Real bonds ≈ <span id="derived-bd-real">1.0%</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span>Equity allocation (working)</span><span class="control-val" id="v-equityFractionWorking">85%</span></div>
+        <input type="range" id="equityFractionWorking" min="0.40" max="1.00" step="0.05" value="0.85" />
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span>Equity allocation (retired)</span><span class="control-val" id="v-equityFractionRetired">60%</span></div>
+        <input type="range" id="equityFractionRetired" min="0.20" max="0.90" step="0.05" value="0.60" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Guardrails / Flexible Spending -->
+  <div class="sidebar-section">
+    <div class="section-header open" data-section="guardrails">
+      <span>Flexible Spending</span>
+      <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4,6 8,10 12,6"/>
+      </svg>
+    </div>
+    <div class="section-body" id="sb-guardrails">
+      <div class="toggle-row">
+        <label class="toggle-label">
+          <input type="checkbox" id="flexibleSpending" />
+          <span class="toggle-switch"></span>
+          Cut spending in bad markets
+        </label>
+      </div>
+      <div id="guardrails-controls" class="guardrails-panel dim">
+        <div class="control-group">
+          <div class="control-label"><span>Trigger: cut if withdrawal rate exceeds</span><span class="control-val" id="v-upperGuardrail">5.0%</span></div>
+          <input type="range" id="upperGuardrail" min="0.040" max="0.080" step="0.005" value="0.05" />
+        </div>
+        <div class="control-group">
+          <div class="control-label"><span>Trigger: can increase if rate below</span><span class="control-val" id="v-lowerGuardrail">3.0%</span></div>
+          <input type="range" id="lowerGuardrail" min="0.015" max="0.040" step="0.005" value="0.03" />
+        </div>
+        <div class="control-group">
+          <div class="control-label"><span>Adjustment size per trigger event</span><span class="control-val" id="v-guardrailCut">10%</span></div>
+          <input type="range" id="guardrailCut" min="0.05" max="0.25" step="0.05" value="0.10" />
+        </div>
+        <div class="control-group">
+          <div class="control-label"><span>Hard spending floor (% of retirement base)</span><span class="control-val" id="v-spendingFloor">75%</span></div>
+          <input type="range" id="spendingFloor" min="0.50" max="0.95" step="0.05" value="0.75" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+</aside>
+
+<!-- ── MAIN ─────────────────────────────────────── -->
+<main class="main">
+
+  <!-- Guardrails insight bar (shows when guardrails enabled) -->
+  <div class="guardrails-insight hidden" id="guardrails-insight">
+    <div>
+      <div class="g-label">Survival without flexibility</div>
+      <div style="font-size:18px;font-weight:700;color:var(--text)" id="gi-without">—</div>
+    </div>
+    <div style="font-size:24px;color:var(--muted)">→</div>
+    <div>
+      <div class="g-label">With guardrails active</div>
+      <div class="g-diff" id="gi-with">—</div>
+    </div>
+    <div style="margin-left:auto;font-size:12px;color:var(--muted);max-width:280px">
+      Willing to cut spending by <strong id="gi-cut">10%</strong> when markets are down — never below
+      <strong id="gi-floor">75%</strong> of retirement baseline.
+    </div>
+  </div>
+
+  <!-- Metric Cards -->
+  <div class="metrics-row">
+    <div class="metric-card">
+      <div class="metric-label">Survival Probability</div>
+      <div class="metric-value" id="m-survival" style="color:var(--success)">—</div>
+      <div class="metric-sub" id="m-survival-sub">to Person 1 age 101</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Portfolio at Retirement</div>
+      <div class="metric-value" id="m-port-retire">—</div>
+      <div class="metric-sub">median scenario (p50)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Portfolio at Age 70</div>
+      <div class="metric-value" id="m-port-70">—</div>
+      <div class="metric-sub">median scenario (p50)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Required to Retire</div>
+      <div class="metric-value" id="m-required">—</div>
+      <div class="metric-sub">at chosen SWR</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">FIRE Ready</div>
+      <div class="metric-value" id="m-fire">—</div>
+      <div class="metric-sub" id="m-fire-sub">Person 1's age when funded</div>
+    </div>
+  </div>
+
+  <!-- Portfolio trajectory chart -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Portfolio Trajectory</div>
+        <div class="chart-sub">Monte Carlo percentile bands · median deterministic path highlighted</div>
+      </div>
+      <div class="chart-legend">
+        <span class="legend-item">
+          <span class="legend-line" style="background:var(--accent)"></span>Median
+        </span>
+        <span class="legend-item">
+          <span class="legend-band" style="background:rgba(167,139,250,0.35)"></span>P25–P75
+        </span>
+        <span class="legend-item">
+          <span class="legend-band" style="background:rgba(167,139,250,0.12)"></span>P10–P90
+        </span>
+      </div>
+    </div>
+    <canvas id="portfolio-chart"></canvas>
+  </div>
+
+  <!-- Cashflow + Distribution row -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Annual Income vs. Spending</div>
+          <div class="chart-sub">Deterministic median path · every 2 years</div>
+        </div>
+      </div>
+      <canvas id="cashflow-chart"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Final Portfolio Distribution</div>
+          <div class="chart-sub">Nathan age 101 · all Monte Carlo outcomes</div>
+        </div>
+      </div>
+      <canvas id="dist-chart"></canvas>
+    </div>
+  </div>
+
+  <!-- Scenario Comparison -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Scenario Comparison</div>
+        <div class="chart-sub">Current settings vs. preset scenarios</div>
+      </div>
+    </div>
+    <div class="scenario-grid" id="scenario-grid">
+      <div class="scenario-card" style="opacity:0.4;text-align:center;padding:40px">Computing…</div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<div class="computing" id="computing">
+  <div class="spinner"></div>
+  <span>Simulating…</span>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// RNG — Mulberry32 seeded PRNG + Marsaglia polar for normal distribution
+// ─────────────────────────────────────────────────────────────────────────────
+function mulberry32(seed) {
+  return function() {
+    seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = t + Math.imul(t ^ (t >>> 7), 61 | t) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function makeGauss(seed) {
+  const rand = mulberry32(seed);
+  let spare = null;
+  return function gauss(mu, sigma) {
+    if (spare !== null) { const v = spare; spare = null; return mu + sigma * v; }
+    let u, v, s;
+    do { u = rand() * 2 - 1; v = rand() * 2 - 1; s = u * u + v * v; }
+    while (s >= 1 || s === 0);
+    const m = Math.sqrt(-2 * Math.log(s) / s);
+    spare = v * m;
+    return mu + sigma * (u * m);
+  };
+}
+
+// Deterministic "gauss" that always returns mu (used for median path)
+function detGauss(mu) { return mu; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Historical S&P 500 real total returns 1928–2023 (approximate, incl. dividends,
+// CPI-adjusted). Source: Shiller/Damodaran datasets.
+// Mean ≈ 7.5%, σ ≈ 19.5% — bootstrapped for "historical" mode.
+// ─────────────────────────────────────────────────────────────────────────────
+const HIST_EQ_RETURNS = [
+   0.34, -0.13, -0.28, -0.46, -0.12,  // 1928-1932
+   0.49, -0.07,  0.39,  0.32, -0.43,  // 1933-1937
+   0.27, -0.03, -0.13, -0.19,  0.16,  // 1938-1942
+   0.23,  0.17,  0.31, -0.16, -0.10,  // 1943-1947
+  -0.01,  0.15,  0.28,  0.22,  0.16,  // 1948-1952
+  -0.04,  0.48,  0.29,  0.00, -0.16,  // 1953-1957
+   0.39,  0.08, -0.01,  0.24, -0.12,  // 1958-1962
+   0.19,  0.12,  0.08, -0.15,  0.19,  // 1963-1967
+   0.07, -0.17, -0.07,  0.08,  0.15,  // 1968-1972
+  -0.24, -0.37,  0.31,  0.18, -0.13,  // 1973-1977
+   0.02,  0.08,  0.21, -0.06,  0.15,  // 1978-1982
+   0.18,  0.02,  0.27,  0.15, -0.00,  // 1983-1987
+   0.12,  0.27, -0.10,  0.27,  0.05,  // 1988-1992
+   0.07, -0.01,  0.35,  0.20,  0.31,  // 1993-1997
+   0.27,  0.19, -0.12, -0.13, -0.23,  // 1998-2002
+   0.26,  0.09,  0.03,  0.12,  0.04,  // 2003-2007
+  -0.39,  0.24,  0.13,  0.00,  0.13,  // 2008-2012
+   0.30,  0.11, -0.01,  0.10,  0.19,  // 2013-2017
+  -0.06,  0.29,  0.16,  0.27, -0.18,  // 2018-2022
+   0.24,                               // 2023
+];
+const HIST_EQ_MEAN = HIST_EQ_RETURNS.reduce((a, b) => a + b, 0) / HIST_EQ_RETURNS.length;
+
+function makeHistRng(seed) {
+  const rand = mulberry32(seed);
+  // ignores mu/sigma — samples from historical return table
+  return function(_mu, _sigma) {
+    return HIST_EQ_RETURNS[Math.floor(rand() * HIST_EQ_RETURNS.length)];
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Default config — mirrors Python ScenarioConfig exactly
+// ─────────────────────────────────────────────────────────────────────────────
+const DEFAULT = /* __MONARCH_DEFAULT__ */ {};
+const MONARCH_META = /* __MONARCH_META__ */ {};
+
+let cfg = { ...DEFAULT };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Simulation
+// ─────────────────────────────────────────────────────────────────────────────
+function simulateOne(c, gauss) {
+  let portfolio = c.portfolioTotal;
+  const path = [];
+
+  for (let y = 0; y < c.years; y++) {
+    const ageN = c.nathanAge + y;
+    const ageT = c.tanyaAge + y;
+    const nRet = ageN >= c.retireNathanAge;
+    const tRet = ageT >= c.retireTanyaAge;
+    const bothRet = nRet && tRet;
+
+    // ── Income ──────────────────────────────────────────────────────────────
+    let income = 0;
+    if (!nRet) {
+      const sal = c.nathanSalaryBase * Math.pow(1 + c.incomeGrowthReal, y);
+      const rsu = c.nathanRsuAnnual * Math.min(1, (y + 1) / c.rsuVestingYears);
+      income += (sal + rsu) * (1 - c.effectiveIncomeTax);
+    }
+    if (!tRet) {
+      const sal = c.tanyaSalaryBase * Math.pow(1 + c.incomeGrowthReal, y);
+      const rsu = c.tanyaRsuAnnual * Math.min(1, (y + 1) / c.rsuVestingYears);
+      income += (sal + rsu) * (1 - c.effectiveIncomeTax);
+    }
+    // Social Security
+    const ssN = c.ssNathanAnnual * c.ssReductionFactor;
+    const ssT = c.ssTanyaAnnual * c.ssReductionFactor;
+    if (ageN >= c.ssClaimAge) income += ssN;
+    if (ageT >= c.ssClaimAge) income += ssT;
+
+    // ── Spending ────────────────────────────────────────────────────────────
+    const spendMult = Math.pow(1 + c.spendingGrowthReal, y);
+    let spending;
+    if (bothRet) {
+      spending = c.baseSpending * c.retirementSpendingFraction * spendMult;
+      if (ageN < c.medicareAge) spending += c.healthcareAnnual;
+    } else {
+      spending = c.baseSpending * spendMult;
+    }
+
+    // Kids
+    for (let k = 0; k < c.numKids; k++) {
+      const kidAge = y - (c.firstKidYear + k * 2);
+      if (kidAge >= 0 && kidAge <= 4)    spending += c.childcareAnnual;
+      else if (kidAge >= 5 && kidAge <= 17) spending += c.k12Annual;
+      if (kidAge === 18)                 spending += c.collegeContribution;
+    }
+
+    // House upgrade one-time hit
+    if (c.upgradeHouse && y === c.upgradeYear) spending += c.upgradeAdditionalCost;
+
+    // ── Flexible spending guardrails ─────────────────────────────────────────
+    if (bothRet && c.flexibleSpending && portfolio > 1) {
+      const netDraw = Math.max(0, spending - income);
+      const wRate = netDraw / portfolio;
+      const baseRetSpend = c.baseSpending * c.retirementSpendingFraction * spendMult;
+      const floor = baseRetSpend * c.spendingFloor;
+      const ceil  = baseRetSpend * c.spendingCeiling;
+      if (wRate > c.upperGuardrail) {
+        spending = Math.max(spending * (1 - c.guardrailCut), floor);
+      } else if (wRate < c.lowerGuardrail) {
+        spending = Math.min(spending * (1 + c.guardrailCut), ceil);
+      }
+    }
+
+    // ── Portfolio return ─────────────────────────────────────────────────────
+    const eqFrac  = bothRet ? c.equityFractionRetired : c.equityFractionWorking;
+    const eqRet   = gauss(c.equityReturnReal, c.equityStd);  // real; gauss handles MC vs historical
+    const portRet = eqFrac * eqRet + (1 - eqFrac) * c.bondReturnReal;
+
+    portfolio = Math.max(portfolio * (1 + portRet) + income - spending, 0);
+
+    path.push({ year: y + 1, age: ageN, ageT, portfolio, income, spending,
+                savings: income - spending, retired: bothRet });
+
+    if (portfolio === 0 && bothRet) {
+      for (let yy = y + 1; yy < c.years; yy++) {
+        const aN = c.nathanAge + yy;
+        path.push({ year: yy + 1, age: aN, ageT: c.tanyaAge + yy,
+                    portfolio: 0, income: 0, spending: 0, savings: 0, retired: true });
+      }
+      break;
+    }
+  }
+
+  return path;
+}
+
+function pct(arr, p) {
+  const s = [...arr].sort((a, b) => a - b);
+  return s[Math.min(Math.floor(p * s.length), s.length - 1)] ?? 0;
+}
+
+function runMonteCarlo(c) {
+  // Resolve nominal → real returns once before simulation
+  const eqReal   = c.useHistoricalReturns ? HIST_EQ_MEAN : (c.equityReturnNominal - c.inflation);
+  const bdReal   = c.bondReturnNominal - c.inflation;
+  const rc = { ...c, equityReturnReal: eqReal, bondReturnReal: bdReal };
+
+  const detRng = (mu) => mu;  // always returns expected value for median path
+  const medianPath = simulateOne(rc, detRng);
+  const allPaths = [];
+  for (let i = 0; i < rc.mcRuns; i++) {
+    const rng = rc.useHistoricalReturns ? makeHistRng(i * 997 + 42) : makeGauss(i * 997 + 42);
+    allPaths.push(simulateOne(rc, rng));
+  }
+
+  const survive = allPaths.filter(p => p[p.length - 1].portfolio > 0).length / allPaths.length;
+
+  const percs = Array.from({ length: c.years }, (_, t) => {
+    const vals = allPaths.map(p => p[t]?.portfolio ?? 0);
+    return {
+      age: c.nathanAge + t,
+      p10: pct(vals, 0.10), p25: pct(vals, 0.25), p50: pct(vals, 0.50),
+      p75: pct(vals, 0.75), p90: pct(vals, 0.90),
+    };
+  });
+
+  const retireIdx = Math.max(0, Math.min(c.retireNathanAge - c.nathanAge, c.years - 1));
+  const age70idx  = Math.max(0, Math.min(70 - c.nathanAge, c.years - 1));
+  const required  = c.baseSpending * c.retirementSpendingFraction / c.swr;
+  const fireEntry = medianPath.find(y => y.retired && y.portfolio >= required);
+  const finalVals = allPaths.map(p => p[p.length - 1].portfolio);
+
+  return { survival: survive, medianPath, percs,
+           portAtRetire: percs[retireIdx], portAt70: percs[age70idx],
+           required, fireEntry, finalVals };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Formatting helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function fmtM(v) {
+  if (v == null || isNaN(v)) return '—';
+  const a = Math.abs(v);
+  if (a >= 1e6)   return `$${(v / 1e6).toFixed(1)}M`;
+  if (a >= 1e3)   return `$${(v / 1e3).toFixed(0)}k`;
+  return `$${v.toFixed(0)}`;
+}
+
+function survivalColor(s) {
+  if (s >= 0.90) return 'var(--success)';
+  if (s >= 0.70) return 'var(--warn)';
+  return 'var(--danger)';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chart state
+// ─────────────────────────────────────────────────────────────────────────────
+let portfolioChart = null, cashflowChart = null, distChart = null;
+
+const GRID_COLOR  = 'rgba(255,255,255,0.05)';
+const TEXT_COLOR  = '#8b949e';
+const ACCENT      = '#a78bfa';
+const ACCENT_DARK = '#7c3aed';
+const INCOME_CLR  = '#3fb950';
+const SPEND_CLR   = '#f85149';
+
+function baseChartOpts(yFmt) {
+  return {
+    responsive: true,
+    maintainAspectRatio: true,
+    animation: { duration: 300 },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#21262d',
+        borderColor: '#30363d',
+        borderWidth: 1,
+        titleColor: '#e6edf3',
+        bodyColor: '#8b949e',
+        padding: 10,
+      },
+    },
+    scales: {
+      x: { grid: { color: GRID_COLOR }, ticks: { color: TEXT_COLOR, maxTicksLimit: 12 } },
+      y: { grid: { color: GRID_COLOR }, ticks: { color: TEXT_COLOR, callback: yFmt } },
+    },
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Metric cards
+// ─────────────────────────────────────────────────────────────────────────────
+function updateMetrics(stats) {
+  const s   = stats.survival;
+  const mEl = document.getElementById('m-survival');
+  mEl.textContent = `${Math.round(s * 100)}%`;
+  mEl.style.color = survivalColor(s);
+
+  document.getElementById('m-port-retire').textContent = fmtM(stats.portAtRetire?.p50);
+  document.getElementById('m-port-70').textContent     = fmtM(stats.portAt70?.p50);
+  document.getElementById('m-required').textContent    = fmtM(stats.required);
+
+  const fe = stats.fireEntry;
+  if (fe) {
+    document.getElementById('m-fire').textContent = `Age ${fe.age}`;
+  } else if (cfg.retireNathanAge <= cfg.nathanAge) {
+    document.getElementById('m-fire').textContent = 'Now!';
+  } else {
+    document.getElementById('m-fire').textContent = 'Already!';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Portfolio trajectory chart
+// ─────────────────────────────────────────────────────────────────────────────
+function updatePortfolioChart(stats) {
+  const labels = stats.percs.map(p => p.age);
+  const retireAge = cfg.retireNathanAge;
+  const ssAge = cfg.ssClaimAge;
+
+  // Vertical annotation lines as extra datasets (hairline single-point lines are hacky;
+  // instead we'll draw them in afterDraw plugin)
+  const datasets = [
+    // P10 (anchor for outer band fill)
+    { label: 'P10', data: stats.percs.map(p => p.p10),
+      borderColor: 'transparent', pointRadius: 0, tension: 0.3, fill: false },
+    // P90 fills toward P10
+    { label: 'P90', data: stats.percs.map(p => p.p90),
+      borderColor: 'transparent', pointRadius: 0, tension: 0.3,
+      fill: { target: 0, above: 'rgba(124,58,237,0.12)', below: 'transparent' },
+      backgroundColor: 'rgba(124,58,237,0.12)' },
+    // P25 anchor for inner band
+    { label: 'P25', data: stats.percs.map(p => p.p25),
+      borderColor: 'transparent', pointRadius: 0, tension: 0.3, fill: false },
+    // P75 fills toward P25
+    { label: 'P75', data: stats.percs.map(p => p.p75),
+      borderColor: 'transparent', pointRadius: 0, tension: 0.3,
+      fill: { target: 2, above: 'rgba(124,58,237,0.28)', below: 'transparent' },
+      backgroundColor: 'rgba(124,58,237,0.28)' },
+    // P50 median — bright line
+    { label: 'Median', data: stats.percs.map(p => p.p50),
+      borderColor: ACCENT, borderWidth: 2.5, pointRadius: 0, tension: 0.3,
+      fill: false, backgroundColor: 'transparent' },
+  ];
+
+  const verticalLinesPlugin = {
+    id: 'vertLines',
+    afterDraw(chart) {
+      const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+      const lines = [
+        { age: retireAge, color: '#d29922', label: `Retire ${retireAge}` },
+        { age: ssAge, color: '#60a5fa', label: `SS ${ssAge}` },
+      ];
+      ctx.save();
+      lines.forEach(({ age, color, label }) => {
+        const xi = labels.indexOf(age);
+        if (xi < 0) return;
+        const xPx = x.getPixelForValue(xi);
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.moveTo(xPx, top); ctx.lineTo(xPx, bottom);
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.font = '10px -apple-system, sans-serif';
+        ctx.fillText(label, xPx + 4, top + 14);
+      });
+      ctx.restore();
+    },
+  };
+
+  const opts = {
+    ...baseChartOpts(v => fmtM(v)),
+    plugins: {
+      ...baseChartOpts().plugins,
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#21262d', borderColor: '#30363d', borderWidth: 1,
+        titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 10,
+        filter: item => !['P10','P25'].includes(item.dataset.label),
+        callbacks: {
+          title: items => `${MONARCH_META.person1Name} age ${labels[items[0].dataIndex]}`,
+          label: item => {
+            const d = item.dataset.label;
+            const v = item.raw;
+            return `${d}: ${fmtM(v)}`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: { grid: { color: GRID_COLOR }, ticks: { color: TEXT_COLOR, maxTicksLimit: 14,
+             callback: (_, i) => labels[i] } },
+      y: { grid: { color: GRID_COLOR }, ticks: { color: TEXT_COLOR, callback: v => fmtM(v) } },
+    },
+  };
+
+  if (portfolioChart) {
+    portfolioChart.data.labels  = labels;
+    portfolioChart.data.datasets = datasets;
+    portfolioChart.update('none');
+  } else {
+    const ctx = document.getElementById('portfolio-chart').getContext('2d');
+    portfolioChart = new Chart(ctx, {
+      type: 'line', data: { labels, datasets }, options: opts,
+      plugins: [verticalLinesPlugin],
+    });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cashflow chart
+// ─────────────────────────────────────────────────────────────────────────────
+function updateCashflowChart(medianPath) {
+  const path = medianPath.filter((_, i) => i % 2 === 0);
+  const labels = path.map(p => p.age);
+  const datasets = [
+    { label: 'Income', data: path.map(p => p.income), type: 'bar',
+      backgroundColor: 'rgba(63,185,80,0.7)', borderColor: INCOME_CLR, borderWidth: 1, borderRadius: 3 },
+    { label: 'Spending', data: path.map(p => p.spending), type: 'bar',
+      backgroundColor: 'rgba(248,81,73,0.7)', borderColor: SPEND_CLR, borderWidth: 1, borderRadius: 3 },
+    { label: 'Net savings', data: path.map(p => p.savings), type: 'line',
+      borderColor: '#60a5fa', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'y' },
+  ];
+
+  const retireLine = {
+    id: 'retireLine',
+    afterDraw(chart) {
+      const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+      const retireIdx = labels.indexOf(cfg.retireNathanAge);
+      if (retireIdx < 0) return;
+      const xPx = x.getPixelForValue(retireIdx);
+      ctx.save();
+      ctx.beginPath(); ctx.strokeStyle = '#d29922';
+      ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+      ctx.moveTo(xPx, top); ctx.lineTo(xPx, bottom); ctx.stroke();
+      ctx.fillStyle = '#d29922'; ctx.font = '10px sans-serif';
+      ctx.fillText('Retire', xPx + 4, top + 14);
+      ctx.restore();
+    },
+  };
+
+  const opts = {
+    ...baseChartOpts(v => fmtM(v)),
+    plugins: {
+      legend: { display: true, labels: { color: TEXT_COLOR, boxWidth: 12, padding: 16, font: { size: 11 } } },
+      tooltip: {
+        backgroundColor: '#21262d', borderColor: '#30363d', borderWidth: 1,
+        titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 10,
+        callbacks: {
+          title: items => `${MONARCH_META.person1Name} age ${labels[items[0].dataIndex]}`,
+          label: item => `${item.dataset.label}: ${fmtM(item.raw)}`,
+        },
+      },
+    },
+    scales: {
+      x: { grid: { color: GRID_COLOR }, ticks: { color: TEXT_COLOR, maxTicksLimit: 12,
+             callback: (_, i) => labels[i] } },
+      y: { grid: { color: GRID_COLOR }, ticks: { color: TEXT_COLOR, callback: v => fmtM(v) } },
+    },
+  };
+
+  if (cashflowChart) {
+    cashflowChart.data.labels   = labels;
+    cashflowChart.data.datasets = datasets;
+    cashflowChart.update('none');
+  } else {
+    const ctx = document.getElementById('cashflow-chart').getContext('2d');
+    cashflowChart = new Chart(ctx, { type: 'bar', data: { labels, datasets }, options: opts, plugins: [retireLine] });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Distribution histogram
+// ─────────────────────────────────────────────────────────────────────────────
+function updateDistChart(finalVals) {
+  const maxVal  = Math.max(...finalVals);
+  const bins    = 24;
+  const binSize = maxVal / bins;
+  const counts  = new Array(bins).fill(0);
+  finalVals.forEach(v => {
+    const b = Math.min(Math.floor(v / binSize), bins - 1);
+    counts[b]++;
+  });
+  const labels = counts.map((_, i) => fmtM((i + 0.5) * binSize));
+  const colors = counts.map((_, i) => {
+    const v = (i + 0.5) * binSize;
+    if (v < 1e6) return 'rgba(248,81,73,0.7)';
+    if (v < 5e6) return 'rgba(210,153,34,0.7)';
+    return 'rgba(63,185,80,0.7)';
+  });
+
+  const data = {
+    labels,
+    datasets: [{
+      label: 'Scenarios',
+      data: counts,
+      backgroundColor: colors,
+      borderRadius: 3,
+      borderWidth: 0,
+    }],
+  };
+
+  const opts = {
+    ...baseChartOpts(v => v),
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#21262d', borderColor: '#30363d', borderWidth: 1,
+        titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 10,
+        callbacks: {
+          title: items => `≈ ${labels[items[0].dataIndex]}`,
+          label: item => `${item.raw} of ${cfg.mcRuns} scenarios`,
+        },
+      },
+    },
+    scales: {
+      x: { grid: { color: GRID_COLOR }, ticks: { color: TEXT_COLOR, maxTicksLimit: 8, callback: (_, i) => labels[i] } },
+      y: { grid: { color: GRID_COLOR }, ticks: { color: TEXT_COLOR } },
+    },
+  };
+
+  if (distChart) {
+    distChart.data   = data;
+    distChart.update('none');
+  } else {
+    const ctx = document.getElementById('dist-chart').getContext('2d');
+    distChart = new Chart(ctx, { type: 'bar', data, options: opts });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Preset scenarios
+// ─────────────────────────────────────────────────────────────────────────────
+const PRESETS = [
+  { label: 'Baseline',      cfg: {} },
+  { label: 'Retire Now',    cfg: { retireNathanAge: DEFAULT.nathanAge, retireTanyaAge: DEFAULT.tanyaAge, retirementSpendingFraction: 0.90 } },
+  { label: 'Retire at 40',  cfg: { retireNathanAge: 40, retireTanyaAge: 42 } },
+  { label: '2 Kids',        cfg: { numKids: 2, firstKidYear: 2, baseSpending: 155000 } },
+  { label: '2 Kids + House',cfg: { numKids: 2, firstKidYear: 2, baseSpending: 160000, upgradeHouse: true, upgradeYear: 4, upgradeAdditionalCost: 400000 } },
+  { label: 'Conservative',  cfg: { swr: 0.035 } },
+  { label: 'High Spend',    cfg: { retirementSpendingFraction: 1.0, baseSpending: 175000 } },
+  { label: 'Market Bear',   cfg: { equityReturnNominal: 0.07, equityStd: 0.20, bondReturnNominal: 0.03, inflation: 0.04 } },
+];
+
+function buildPresetCfg(preset) {
+  return { ...DEFAULT, ...preset.cfg };
+}
+
+function renderPresets() {
+  const grid = document.getElementById('preset-grid');
+  grid.innerHTML = PRESETS.map((p, i) =>
+    `<button class="preset-btn" data-idx="${i}">${p.label}</button>`
+  ).join('');
+  grid.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      grid.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      cfg = buildPresetCfg(PRESETS[+btn.dataset.idx]);
+      syncUIFromCfg();
+      scheduleRender();
+    });
+  });
+  // Mark baseline as active initially
+  grid.querySelector('.preset-btn')?.classList.add('active');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario comparison panel
+// ─────────────────────────────────────────────────────────────────────────────
+let scenarioCache = null;
+
+function renderScenarioGrid(customStats) {
+  if (!scenarioCache) {
+    // Compute presets
+    scenarioCache = PRESETS.map(p => {
+      const sc = runMonteCarlo(buildPresetCfg(p));
+      return { label: p.label, ...sc };
+    });
+  }
+
+  const all = [...scenarioCache, { label: '★ Custom', ...customStats }];
+  const grid = document.getElementById('scenario-grid');
+
+  grid.innerHTML = all.map(s => {
+    const pct = Math.round(s.survival * 100);
+    const color = survivalColor(s.survival);
+    const barColor = s.survival >= 0.9 ? '#3fb950' : s.survival >= 0.7 ? '#d29922' : '#f85149';
+    const isCustom = s.label.startsWith('★');
+    const cardStyle = isCustom ? 'border-color:var(--accent);background:rgba(124,58,237,0.05)' : '';
+    return `
+      <div class="scenario-card" style="${cardStyle}">
+        <div class="scenario-name" style="${isCustom ? 'color:var(--accent)' : ''}">${s.label}</div>
+        <div class="scenario-survival" style="color:${color}">${pct}%</div>
+        <div class="survival-bar"><div class="survival-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+        <div class="scenario-stat">
+          <span class="scenario-stat-label">@ retire (p50)</span>
+          <span class="scenario-stat-val">${fmtM(s.portAtRetire?.p50)}</span>
+        </div>
+        <div class="scenario-stat">
+          <span class="scenario-stat-label">@ age 70 (p50)</span>
+          <span class="scenario-stat-val">${fmtM(s.portAt70?.p50)}</span>
+        </div>
+        <div class="scenario-stat">
+          <span class="scenario-stat-label">Required</span>
+          <span class="scenario-stat-val">${fmtM(s.required)}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Guardrails insight bar
+// ─────────────────────────────────────────────────────────────────────────────
+let noGuardrailsSurvival = null;
+
+function updateGuardrailsInsight(stats) {
+  const bar = document.getElementById('guardrails-insight');
+  if (!cfg.flexibleSpending) {
+    noGuardrailsSurvival = stats.survival;
+    bar.classList.add('hidden');
+    return;
+  }
+  bar.classList.remove('hidden');
+
+  // Run without guardrails to compare
+  const noGuards = runMonteCarlo({ ...cfg, flexibleSpending: false });
+  noGuardrailsSurvival = noGuards.survival;
+
+  const wo = Math.round(noGuards.survival * 100);
+  const wi = Math.round(stats.survival * 100);
+  const diff = wi - wo;
+
+  document.getElementById('gi-without').textContent = `${wo}%`;
+  document.getElementById('gi-with').textContent    = `${wi}% ${diff > 0 ? `(+${diff}%)` : ''}`;
+  document.getElementById('gi-cut').textContent     = `${Math.round(cfg.guardrailCut * 100)}%`;
+  document.getElementById('gi-floor').textContent   = `${Math.round(cfg.spendingFloor * 100)}%`;
+  document.getElementById('gi-with').style.color    = diff > 0 ? 'var(--success)' : 'var(--muted)';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main render
+// ─────────────────────────────────────────────────────────────────────────────
+let renderTimer = null;
+
+function scheduleRender() {
+  if (renderTimer) clearTimeout(renderTimer);
+  renderTimer = setTimeout(doRender, 60);
+}
+
+function doRender() {
+  document.getElementById('computing').classList.add('show');
+  // Let the browser paint the spinner before heavy computation
+  requestAnimationFrame(() => {
+    const stats = runMonteCarlo(cfg);
+    updateMetrics(stats);
+    updatePortfolioChart(stats);
+    updateCashflowChart(stats.medianPath);
+    updateDistChart(stats.finalVals);
+    updateGuardrailsInsight(stats);
+
+    // Lazy compute scenario grid (computed once then cached, only custom updates)
+    setTimeout(() => {
+      renderScenarioGrid(stats);
+      document.getElementById('computing').classList.remove('show');
+    }, 0);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Input binding
+// ─────────────────────────────────────────────────────────────────────────────
+const FORMATS = {
+  retireNathanAge:           v => String(Math.round(v)),
+  retireTanyaAge:            v => String(Math.round(v)),
+  portfolioTotal:            v => fmtM(v),
+  swr:                       v => `${(v * 100).toFixed(2).replace(/\.?0+$/, '')}%`,
+  nathanSalaryBase:          v => fmtM(v),
+  tanyaSalaryBase:           v => fmtM(v),
+  nathanRsuAnnual:           v => fmtM(v),
+  tanyaRsuAnnual:            v => fmtM(v),
+  effectiveIncomeTax:        v => `${Math.round(v * 100)}%`,
+  baseSpending:              v => fmtM(v),
+  retirementSpendingFraction:v => `${Math.round(v * 100)}%`,
+  healthcareAnnual:          v => fmtM(v),
+  medicareAge:               v => String(Math.round(v)),
+  numKids:                   v => String(Math.round(v)),
+  childcareAnnual:           v => fmtM(v),
+  k12Annual:                 v => fmtM(v),
+  collegeContribution:       v => fmtM(v),
+  ssNathanAnnual:            v => fmtM(v),
+  ssTanyaAnnual:             v => fmtM(v),
+  ssClaimAge:                v => String(Math.round(v)),
+  ssReductionFactor:         v => `${Math.round(v * 100)}%`,
+  equityReturnNominal:       v => `${(v * 100).toFixed(1)}%`,
+  equityStd:                 v => `${Math.round(v * 100)}%`,
+  bondReturnNominal:         v => `${(v * 100).toFixed(1)}%`,
+  inflation:                 v => `${(v * 100).toFixed(1)}%`,
+  equityFractionWorking:     v => `${Math.round(v * 100)}%`,
+  equityFractionRetired:     v => `${Math.round(v * 100)}%`,
+  upperGuardrail:            v => `${(v * 100).toFixed(1)}%`,
+  lowerGuardrail:            v => `${(v * 100).toFixed(1)}%`,
+  guardrailCut:              v => `${Math.round(v * 100)}%`,
+  spendingFloor:             v => `${Math.round(v * 100)}%`,
+};
+
+const RANGE_FIELDS = Object.keys(FORMATS);
+
+function bindInputs() {
+  RANGE_FIELDS.forEach(field => {
+    const el = document.getElementById(field);
+    if (!el || el.type !== 'range') return;
+    const valEl = document.getElementById('v-' + field);
+
+    el.addEventListener('input', () => {
+      const val = parseFloat(el.value);
+      cfg[field] = val;
+      if (valEl) valEl.textContent = FORMATS[field]?.(val) ?? val;
+      updateRealReturnNote();
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      scenarioCache = null;
+      scheduleRender();
+    });
+  });
+
+  // Checkbox — flexible spending
+  const flexEl = document.getElementById('flexibleSpending');
+  flexEl.addEventListener('change', () => {
+    cfg.flexibleSpending = flexEl.checked;
+    document.getElementById('guardrails-controls').classList.toggle('dim', !flexEl.checked);
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    scheduleRender();
+  });
+
+  // Checkbox — historical returns
+  const histEl = document.getElementById('useHistoricalReturns');
+  histEl.addEventListener('change', () => {
+    cfg.useHistoricalReturns = histEl.checked;
+    document.getElementById('hist-note').style.display = histEl.checked ? 'block' : 'none';
+    document.getElementById('mc-sliders').style.opacity = histEl.checked ? '0.4' : '1';
+    document.getElementById('mc-sliders').style.pointerEvents = histEl.checked ? 'none' : '';
+    document.getElementById('real-return-note').style.display = histEl.checked ? 'none' : 'block';
+    document.getElementById('mc-badge').textContent =
+      histEl.checked ? `${cfg.mcRuns} historical bootstrap runs` : `${cfg.mcRuns} Monte Carlo runs`;
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    scenarioCache = null;
+    scheduleRender();
+  });
+
+  // Section collapse toggles
+  document.querySelectorAll('.section-header').forEach(hdr => {
+    hdr.addEventListener('click', () => {
+      const id = hdr.dataset.section;
+      const body = document.getElementById('sb-' + id);
+      if (!body) return;
+      const open = !body.classList.contains('hidden');
+      body.classList.toggle('hidden', open);
+      hdr.classList.toggle('open', !open);
+    });
+  });
+}
+
+function updateRealReturnNote() {
+  const eqReal = ((cfg.equityReturnNominal ?? DEFAULT.equityReturnNominal) - (cfg.inflation ?? DEFAULT.inflation));
+  const bdReal = ((cfg.bondReturnNominal ?? DEFAULT.bondReturnNominal) - (cfg.inflation ?? DEFAULT.inflation));
+  const eqEl = document.getElementById('derived-eq-real');
+  const bdEl = document.getElementById('derived-bd-real');
+  if (eqEl) eqEl.textContent = `${(eqReal * 100).toFixed(1)}%`;
+  if (bdEl) bdEl.textContent = `${(bdReal * 100).toFixed(1)}%`;
+}
+
+function syncUIFromCfg() {
+  RANGE_FIELDS.forEach(field => {
+    const el = document.getElementById(field);
+    if (!el || el.type !== 'range') return;
+    el.value = cfg[field] ?? DEFAULT[field];
+    const valEl = document.getElementById('v-' + field);
+    if (valEl) valEl.textContent = FORMATS[field]?.(cfg[field]) ?? cfg[field];
+  });
+  const flexEl = document.getElementById('flexibleSpending');
+  flexEl.checked = cfg.flexibleSpending ?? false;
+  document.getElementById('guardrails-controls').classList.toggle('dim', !cfg.flexibleSpending);
+
+  const histEl = document.getElementById('useHistoricalReturns');
+  const hist = cfg.useHistoricalReturns ?? false;
+  histEl.checked = hist;
+  document.getElementById('hist-note').style.display = hist ? 'block' : 'none';
+  document.getElementById('mc-sliders').style.opacity = hist ? '0.4' : '1';
+  document.getElementById('mc-sliders').style.pointerEvents = hist ? 'none' : '';
+  document.getElementById('real-return-note').style.display = hist ? 'none' : 'block';
+  document.getElementById('mc-badge').textContent =
+    hist ? `${cfg.mcRuns} historical bootstrap runs` : `${cfg.mcRuns} Monte Carlo runs`;
+
+  updateRealReturnNote();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Meta — apply person names and hide spouse controls from MONARCH_META
+// ─────────────────────────────────────────────────────────────────────────────
+function applyMeta() {
+  const m = MONARCH_META;
+  document.title = m.hasSpouse
+    ? `Retirement Simulator · ${m.person1Name} & ${m.person2Name}`
+    : `Retirement Simulator · ${m.person1Name}`;
+  const sub = document.getElementById('header-sub');
+  if (sub) sub.textContent = m.hasSpouse
+    ? `${m.person1Name} & ${m.person2Name} · Real (inflation-adjusted) dollars`
+    : `${m.person1Name} · Real (inflation-adjusted) dollars`;
+  document.querySelectorAll('[data-person1]').forEach(el => { el.textContent = m.person1Name; });
+  document.querySelectorAll('[data-person2]').forEach(el => { el.textContent = m.person2Name; });
+  const survivalSub = document.getElementById('m-survival-sub');
+  if (survivalSub) survivalSub.textContent = `to ${m.person1Name} age ${DEFAULT.nathanAge + DEFAULT.years}`;
+  const fireSub = document.getElementById('m-fire-sub');
+  if (fireSub) fireSub.textContent = `${m.person1Name}'s age when funded`;
+  const retireN = document.getElementById('retireNathanAge');
+  if (retireN) retireN.min = m.person1CurrentAge;
+  const retireT = document.getElementById('retireTanyaAge');
+  if (retireT) retireT.min = m.person2CurrentAge ?? m.person1CurrentAge;
+  if (!m.hasSpouse) {
+    document.querySelectorAll('[data-spouse-only]').forEach(el => { el.style.display = 'none'; });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Boot
+// ─────────────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  applyMeta();
+  renderPresets();
+  bindInputs();
+  syncUIFromCfg();
+  scheduleRender();
+});
+</script>
+</body>
+</html>
