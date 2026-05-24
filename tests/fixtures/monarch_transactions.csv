@@ -1,0 +1,11 @@
+Date,Merchant,Original Statement,Account,Category,Amount,Owner,Tags,Notes
+2026-05-01,Acme Coffee,ACME COFFEE 001,Checking,Dining,-5.25,Alex,coffee;work,
+2026-04-20,Acme Coffee,ACME COFFEE 002,Checking,Dining,-6.10,Alex,coffee,
+2026-04-01,Acme Coffee,ACME COFFEE 003,Checking,Dining,-4.80,Alex,coffee,
+2026-03-12,Acme Coffee,ACME COFFEE 004,Checking,Dining,-5.75,Alex,coffee,
+2026-05-10,Acme Coffee,ACME COFFEE 005,Checking,Shopping,-5.95,Alex,coffee,wrong category
+2026-05-02,Shared Market,SHARED MARKET,Checking,Groceries,-88.00,Shared,groceries,
+2026-04-14,Shared Market,SHARED MARKET,Checking,Groceries,-72.50,Shared,groceries,
+2026-04-01,Shared Market,SHARED MARKET,Checking,Groceries,-61.20,Shared,groceries,
+2026-05-16,Shared Market,SHARED MARKET,Checking,Groceries,-47.25,,groceries,missing owner
+2026-05-03,Payroll Inc,PAYROLL INC,Checking,Paycheck,2500.00,Alex,income,
