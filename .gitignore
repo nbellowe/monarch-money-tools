@@ -3,7 +3,11 @@ reports/
 backups/
 .env
 /profile.yaml
+.monarch-home/
+exported/
+private/
 *.session
+*.pickle
 .venv/
 __pycache__/
 *.egg-info/

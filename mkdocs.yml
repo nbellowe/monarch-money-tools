@@ -19,8 +19,27 @@ theme:
 nav:
   - Home: index.md
   - Install: install.md
+  - Workflows: workflows.md
+  - Categorization Cleanup: categorization.md
   - Commands: commands.md
+  - Privacy & Security: privacy-security.md
   - Retirement Simulator: retirement-simulator.md
+  - Troubleshooting: troubleshooting.md
 
 exclude_docs: |
   superpowers/**
+
+extra_javascript:
+  - https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js
+  - javascripts/mermaid-init.js
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format

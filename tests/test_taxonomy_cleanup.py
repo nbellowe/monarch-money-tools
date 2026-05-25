@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from monarch_money_tools.paths import canonical_taxonomy_file
 from monarch_money_tools.storage import write_json
 from monarch_money_tools.taxonomy_cleanup import build_taxonomy_cleanup_plan
 
@@ -55,3 +56,12 @@ retirements:
     assert plan["summary"]["readyCount"] == 1
     assert plan["candidates"][0]["categoryId"] == "cat-auto"
     assert plan["candidates"][0]["requiresNewCategory"] is False
+
+
+def test_canonical_taxonomy_falls_back_to_packaged_file(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.chdir(tmp_path)
+
+    path = canonical_taxonomy_file()
+
+    assert path.exists()
+    assert "monarch_money_tools" in str(path)

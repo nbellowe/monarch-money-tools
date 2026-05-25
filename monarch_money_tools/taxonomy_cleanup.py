@@ -27,7 +27,7 @@ from typing import Any
 
 import yaml
 
-from .paths import cleanup_latest_dir, normalized_latest_dir, taxonomy_dir
+from .paths import canonical_taxonomy_file, cleanup_latest_dir, normalized_latest_dir
 from .storage import read_json, reset_dir, write_csv, write_json, write_text
 
 JsonObject = dict[str, Any]
@@ -58,7 +58,7 @@ def save_decision(transaction_id: str, decision: str) -> None:
 
 def build_taxonomy_cleanup_plan(taxonomy_path: Path | None = None) -> JsonObject:
     if taxonomy_path is None:
-        taxonomy_path = taxonomy_dir() / "canonical-taxonomy.yaml"
+        taxonomy_path = canonical_taxonomy_file()
     if not taxonomy_path.exists():
         raise FileNotFoundError(f"Taxonomy not found: {taxonomy_path}")
 

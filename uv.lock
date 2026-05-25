@@ -878,6 +878,7 @@ dev = [
 ]
 docs = [
     { name = "mkdocs-material" },
+    { name = "pymdown-extensions" },
 ]
 llm = [
     { name = "anthropic" },
@@ -891,6 +892,7 @@ requires-dist = [
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5" },
     { name = "monarchmoney", marker = "extra == 'api'", specifier = ">=0.1.15" },
     { name = "pydantic", specifier = ">=2.8" },
+    { name = "pymdown-extensions", marker = "extra == 'docs'", specifier = ">=10.0" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.380" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.2" },
     { name = "pyyaml", specifier = ">=6.0" },

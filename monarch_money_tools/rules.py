@@ -2,10 +2,10 @@
 Rules engine for Monarch transaction management.
 
 Flow:
-  1. `suggest-rules`  — analyze transaction history, write rule-suggestions.json
+  1. `monarch rules suggest` — analyze transaction history, write rule-suggestions.json
   2. User reviews / edits the file (set enabled=false, or remove merchants from
      the match.merchantNames list to exclude individuals)
-  3. `apply-rules`    — match rules against normalized bundle, call Monarch API
+  3. `monarch rules apply`   — match rules against normalized bundle, call Monarch API
 
 Rule match criteria:
   merchantName      exact match on one merchant (case-insensitive)
@@ -311,7 +311,7 @@ def load_rule_suggestions(rules_path: str | None = None) -> list[JsonObject]:
     path = _Path(rules_path) if rules_path else rules_latest_dir() / "rule-suggestions.json"
     if not path.exists():
         raise FileNotFoundError(
-            f"No rule suggestions found at {path}. Run `monarch suggest-rules` first."
+            f"No rule suggestions found at {path}. Run `monarch rules suggest` first."
         )
     data = read_json(path)
     return list(data.get("rules") or [])
@@ -326,7 +326,7 @@ def build_apply_plan(
     path = _Path(rules_path) if rules_path else rules_latest_dir() / "rule-suggestions.json"
     if not path.exists():
         raise FileNotFoundError(
-            f"No rule suggestions found at {path}. Run `monarch suggest-rules` first."
+            f"No rule suggestions found at {path}. Run `monarch rules suggest` first."
         )
 
     bundle_path = normalized_latest_dir() / "bundle.json"

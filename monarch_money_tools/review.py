@@ -26,7 +26,7 @@ def build_clear_review_plan(categories: list[str] | None = None) -> JsonObject:
     bundle_path = normalized_latest_dir() / "bundle.json"
     if not bundle_path.exists():
         raise FileNotFoundError(
-            "No normalized bundle found. Run `monarch pull` or `monarch import` first."
+            "No normalized bundle found. Run `monarch pull` or `monarch import <csv>` first."
         )
 
     trusted_categories = categories or DEFAULT_CLEAR_REVIEW_CATEGORIES
@@ -84,7 +84,7 @@ async def apply_clear_review_plan(limit: int | None = None) -> JsonObject:
     plan_path = review_latest_dir() / "clear-review-plan.json"
     if not plan_path.exists():
         raise FileNotFoundError(
-            "No clear-review plan found. Run `monarch plan-clear-reviews` first."
+            "No clear-review plan found. Run `monarch review clear-plan` first."
         )
 
     plan = read_json(plan_path)
@@ -139,7 +139,7 @@ def build_review_plan(
     bundle_path = normalized_latest_dir() / "bundle.json"
     if not bundle_path.exists():
         raise FileNotFoundError(
-            "No normalized bundle found. Run `monarch pull` or `monarch import` first."
+            "No normalized bundle found. Run `monarch pull` or `monarch import <csv>` first."
         )
 
     bundle = read_json(bundle_path)
@@ -234,7 +234,7 @@ def build_review_plan(
 async def apply_review_plan(limit: int | None = None) -> JsonObject:
     plan_path = review_latest_dir() / "review-plan.json"
     if not plan_path.exists():
-        raise FileNotFoundError("No review plan found. Run `monarch plan-reviews` first.")
+        raise FileNotFoundError("No review plan found. Run `monarch review plan` first.")
 
     plan = read_json(plan_path)
     updates = list(plan.get("updates") or [])
