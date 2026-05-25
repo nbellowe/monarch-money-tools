@@ -43,6 +43,20 @@ def taxonomy_dir() -> Path:
     return root_dir() / "taxonomy"
 
 
+def local_taxonomy_file() -> Path:
+    return taxonomy_dir() / "canonical-taxonomy.yaml"
+
+
+def bundled_taxonomy_file() -> Path:
+    return Path(__file__).parent / "taxonomy" / "canonical-taxonomy.yaml"
+
+
+def canonical_taxonomy_file() -> Path:
+    """Return a workspace taxonomy when present, otherwise the packaged default."""
+    local = local_taxonomy_file()
+    return local if local.exists() else bundled_taxonomy_file()
+
+
 def rules_latest_dir() -> Path:
     return data_dir() / "rules" / "latest"
 

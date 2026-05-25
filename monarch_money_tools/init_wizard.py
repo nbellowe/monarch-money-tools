@@ -38,32 +38,65 @@ def _append_env(path: Path, new_keys: dict[str, str]) -> None:
             file.write("\n")
         for key, value in to_add.items():
             file.write(f'{key}="{value}"\n')
+    path.chmod(0o600)
 
 
 def _step_credentials(yes: bool, env_path: Path) -> None:
     env = _read_env(env_path)
     email = os.environ.get("MONARCH_EMAIL") or env.get("MONARCH_EMAIL")
     password = os.environ.get("MONARCH_PASSWORD") or env.get("MONARCH_PASSWORD")
+    cookie = os.environ.get("MONARCH_COOKIE") or env.get("MONARCH_COOKIE")
+    session_token = os.environ.get("MONARCH_SESSION_TOKEN") or env.get("MONARCH_SESSION_TOKEN")
+    session_file = os.environ.get("MONARCH_SESSION_FILE") or env.get("MONARCH_SESSION_FILE")
 
     console.print("\n[bold]Step 1: Credentials[/]")
-    if email and password:
-        console.print("[green]ok[/] Credentials already set.")
+    if cookie or session_token or session_file or (email and password):
+        console.print("[green]ok[/] Auth settings already exist.")
         return
 
     if yes:
         console.print(
             "[yellow]--yes mode: skipping credential prompts. "
-            "Set MONARCH_EMAIL and MONARCH_PASSWORD in .env.[/]"
+            "Set MONARCH_COOKIE, MONARCH_SESSION_TOKEN, or password credentials in .env.[/]"
         )
         return
 
-    if not email:
+    console.print(
+        "[dim]Recommended: use browser cookie or saved-session auth. "
+        "Password auth is available as a fallback.[/]"
+    )
+    method = (
+        typer.prompt(
+            "Auth method: cookie, session, password, or skip",
+            default="cookie",
+        )
+        .strip()
+        .lower()
+    )
+    if method in {"skip", "s", ""}:
+        console.print("[yellow]Skipped auth setup.[/]")
+        return
+
+    new_keys: dict[str, str] = {}
+    if method in {"cookie", "c"}:
+        cookie = typer.prompt("Full Monarch Cookie header", hide_input=True)
+        if cookie:
+            new_keys["MONARCH_COOKIE"] = cookie
+            from .monarch_api import csrf_from_cookie
+
+            if not csrf_from_cookie(cookie):
+                csrf = typer.prompt("CSRF token", hide_input=True)
+                if csrf:
+                    new_keys["MONARCH_CSRF_TOKEN"] = csrf
+    elif method in {"session", "token", "t"}:
+        token = typer.prompt("Monarch session token", hide_input=True)
+        if token:
+            new_keys["MONARCH_SESSION_TOKEN"] = token
+    elif method in {"password", "p"}:
         email = typer.prompt("Monarch Money email")
-    if not password:
         password = typer.prompt("Monarch Money password", hide_input=True)
 
-    mfa = os.environ.get("MONARCH_MFA_SECRET") or env.get("MONARCH_MFA_SECRET")
-    if not mfa:
+        mfa = os.environ.get("MONARCH_MFA_SECRET") or env.get("MONARCH_MFA_SECRET")
         console.print(
             "[dim]Optional: MFA secret for automatic login.[/]\n"
             "[dim]To get it: disable 2FA in Monarch, re-enable it, click "
@@ -71,17 +104,18 @@ def _step_credentials(yes: bool, env_path: Path) -> None:
         )
         mfa_input = typer.prompt("MFA secret (Enter to skip)", default="")
         mfa = mfa_input or None
-
-    new_keys: dict[str, str] = {}
-    if email:
-        new_keys["MONARCH_EMAIL"] = email
-    if password:
-        new_keys["MONARCH_PASSWORD"] = password
-    if mfa:
-        new_keys["MONARCH_MFA_SECRET"] = mfa
+        if email:
+            new_keys["MONARCH_EMAIL"] = email
+        if password:
+            new_keys["MONARCH_PASSWORD"] = password
+        if mfa:
+            new_keys["MONARCH_MFA_SECRET"] = mfa
+    else:
+        console.print("[yellow]Unknown auth method; skipped auth setup.[/]")
+        return
 
     _append_env(env_path, new_keys)
-    console.print("[green]ok[/] Credentials written to .env")
+    console.print("[green]ok[/] Auth settings written to .env")
 
 
 def _step_connection_test() -> None:
@@ -98,19 +132,31 @@ def _step_connection_test() -> None:
     except Exception as exc:
         console.print(f"[yellow]Connection test failed:[/] {exc}")
         console.print(
-            "[dim]Check MONARCH_EMAIL, MONARCH_PASSWORD, MONARCH_MFA_SECRET, "
-            "or session-token settings in .env and try again.[/]"
+            "[dim]Check MONARCH_COOKIE, MONARCH_CSRF_TOKEN, MONARCH_SESSION_TOKEN, "
+            "or password fallback settings in .env and try again.[/]"
         )
 
 
-def _step_taxonomy_check() -> None:
+def _step_taxonomy_check(yes: bool) -> None:
     console.print("\n[bold]Step 3: Taxonomy check[/]")
-    from .paths import taxonomy_dir
+    from .paths import canonical_taxonomy_file, local_taxonomy_file
 
-    taxonomy_path = taxonomy_dir() / "canonical-taxonomy.yaml"
+    taxonomy_path = canonical_taxonomy_file()
     if not taxonomy_path.exists():
         console.print(f"[yellow]Taxonomy not found at {taxonomy_path}; skipping.[/]")
         return
+
+    local_path = local_taxonomy_file()
+    if not local_path.exists():
+        should_copy = yes or typer.confirm(
+            "Copy the starter taxonomy into ./taxonomy/canonical-taxonomy.yaml?",
+            default=True,
+        )
+        if should_copy:
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+            local_path.write_text(taxonomy_path.read_text(encoding="utf-8"), encoding="utf-8")
+            taxonomy_path = local_path
+            console.print(f"[green]ok[/] Wrote {local_path}")
 
     try:
         import yaml
@@ -186,6 +232,6 @@ def run_init_wizard(yes: bool = False) -> None:
     env_path = Path(".env")
     _step_credentials(yes, env_path)
     _step_connection_test()
-    _step_taxonomy_check()
+    _step_taxonomy_check(yes)
     _step_profile_bootstrap(yes)
     _step_doctor()

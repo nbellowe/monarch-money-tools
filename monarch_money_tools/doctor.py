@@ -10,7 +10,17 @@ from .paths import analysis_latest_dir, normalized_latest_dir, reports_latest_di
 def collect_checks() -> list[tuple[str, bool, str]]:
     csv_path = resolve_csv_path(None)
     gitignore = root_dir() / ".gitignore"
-    ignored_paths = [".env", ".monarch-home/", "data/", "reports/", "exported/", "private/"]
+    ignored_paths = [
+        ".env",
+        ".monarch-home/",
+        "data/",
+        "reports/",
+        "backups/",
+        "exported/",
+        "private/",
+        "/profile.yaml",
+        "*.pickle",
+    ]
     ignore_text = gitignore.read_text(encoding="utf-8") if gitignore.exists() else ""
 
     return [

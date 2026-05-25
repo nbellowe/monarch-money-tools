@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Coroutine
 from pathlib import Path
-from typing import Annotated, Any, TypeVar, cast
+from typing import Annotated, Any, NoReturn, TypeVar, cast
 
 import typer
 from rich.console import Console
@@ -13,7 +13,8 @@ from .analyzer import run_analyze
 from .backup import create_pre_cleanup_backup, verify_pre_cleanup_backup
 from .cashflow import run_income_overlay
 from .doctor import collect_checks, has_python_project
-from .exporter import run_export
+from .env import get_config
+from .exporter import resolve_csv_path, run_export
 from .init_wizard import run_init_wizard
 from .llm_review import FOCUS_CATEGORIES, build_llm_review_plan
 from .monarch_api import (
@@ -40,6 +41,22 @@ app = typer.Typer(
     help="Local-first Monarch Money export analysis and planning CLI.",
     no_args_is_help=True,
 )
+data_app = typer.Typer(
+    help="Data import, pull, analysis, and reporting commands.",
+    no_args_is_help=True,
+)
+review_app = typer.Typer(help="Needs-Review planning and apply commands.", no_args_is_help=True)
+cleanup_app = typer.Typer(help="Taxonomy and merchant cleanup commands.", no_args_is_help=True)
+rules_app = typer.Typer(help="Rule suggestion and Monarch rule commands.", no_args_is_help=True)
+retirement_app = typer.Typer(
+    help="Retirement profile and simulator commands.",
+    no_args_is_help=True,
+)
+app.add_typer(data_app, name="data")
+app.add_typer(review_app, name="review")
+app.add_typer(cleanup_app, name="cleanup")
+app.add_typer(rules_app, name="rules")
+app.add_typer(retirement_app, name="retirement")
 console = Console()
 T = TypeVar("T")
 
@@ -66,14 +83,20 @@ def import_command(
     ] = None,
 ) -> None:
     """Import and normalize a Monarch transaction CSV export."""
-    bundle_path = run_export(csv_path)
+    try:
+        bundle_path = run_export(csv_path)
+    except FileNotFoundError as error:
+        exit_with_file_error(error)
     console.print(f"[green]Wrote normalized bundle:[/] {bundle_path}")
 
 
 @app.command("analyze")
 def analyze_command() -> None:
     """Analyze normalized transactions for review and rule opportunities."""
-    analysis = run_analyze()
+    try:
+        analysis = run_analyze()
+    except FileNotFoundError as error:
+        exit_with_file_error(error)
     summary = analysis["summary"]
     console.print(
         "[green]Analysis complete:[/] "
@@ -86,7 +109,10 @@ def analyze_command() -> None:
 @app.command("report")
 def report_command() -> None:
     """Render Markdown and CSV reports from the latest analysis."""
-    run_report()
+    try:
+        run_report()
+    except FileNotFoundError as error:
+        exit_with_file_error(error)
     console.print("[green]Reports written:[/] reports/latest")
 
 
@@ -165,12 +191,15 @@ def run_command(
         typer.Argument(help="Path to a Monarch transaction CSV export."),
     ] = None,
 ) -> None:
-    """Import, analyze, and report in one safe read-only pass."""
-    bundle_path = run_export(csv_path)
-    analysis = run_analyze()
-    run_report()
+    """Import if needed, then analyze and report in one safe read-only pass."""
+    try:
+        bundle_path = resolve_run_bundle(csv_path)
+        analysis = run_analyze()
+        run_report()
+    except FileNotFoundError as error:
+        exit_with_file_error(error)
     summary = analysis["summary"]
-    console.print(f"[green]Imported:[/] {bundle_path}")
+    console.print(f"[green]Input bundle:[/] {bundle_path}")
     console.print(
         "[green]Reports written:[/] reports/latest "
         f"({summary['miscategorizationCount']} category, "
@@ -204,7 +233,10 @@ def cleanup_plan_command(
     ] = False,
 ) -> None:
     """Generate deterministic taxonomy cleanup candidates (migrations + merchant history)."""
-    plan = build_taxonomy_cleanup_plan()
+    try:
+        plan = build_taxonomy_cleanup_plan()
+    except FileNotFoundError as error:
+        exit_with_file_error(error)
     s = plan["summary"]
     cats = plan.get("categoriesToCreate") or []
     decisions = load_decisions()
@@ -280,7 +312,7 @@ def apply_cleanup_command(
 
     plan_path = cleanup_latest_dir() / "cleanup-plan.json"
     if not plan_path.exists():
-        console.print("[red]No cleanup plan found.[/] Run `monarch cleanup-plan` first.")
+        console.print("[red]No cleanup plan found.[/] Run `monarch cleanup plan` first.")
         raise typer.Exit(1)
 
     plan = read_json(plan_path)
@@ -383,11 +415,14 @@ def plan_reviews_command(
     ] = False,
 ) -> None:
     """Plan category/review updates for transactions marked Needs Review."""
-    plan = build_review_plan(
-        min_confidence=min_confidence,
-        include_pending=include_pending,
-        review_correct_categories=not skip_already_correct,
-    )
+    try:
+        plan = build_review_plan(
+            min_confidence=min_confidence,
+            include_pending=include_pending,
+            review_correct_categories=not skip_already_correct,
+        )
+    except FileNotFoundError as error:
+        exit_with_file_error(error)
     summary = plan["summary"]
     console.print(
         "[green]Review plan written:[/] data/review/latest/review-plan.json "
@@ -407,7 +442,10 @@ def plan_clear_reviews_command(
 ) -> None:
     """Write a reviewable plan for clearing Needs Review on trusted categories."""
     trusted = [category.strip() for category in categories.split(",") if category.strip()]
-    plan = build_clear_review_plan(trusted)
+    try:
+        plan = build_clear_review_plan(trusted)
+    except FileNotFoundError as error:
+        exit_with_file_error(error)
     summary = plan["summary"]
     console.print(
         "[green]Clear-review plan written:[/] data/review/latest/clear-review-plan.json "
@@ -436,7 +474,7 @@ def apply_clear_reviews_command(
 
     plan_path = review_latest_dir() / "clear-review-plan.json"
     if not plan_path.exists():
-        console.print("[red]No clear-review plan found.[/] Run `monarch plan-clear-reviews` first.")
+        console.print("[red]No clear-review plan found.[/] Run `monarch review clear-plan` first.")
         raise typer.Exit(1)
 
     plan = read_json(plan_path)
@@ -496,7 +534,7 @@ def apply_reviews_command(
 
     plan_path = review_latest_dir() / "review-plan.json"
     if not plan_path.exists():
-        console.print("[red]No review plan found.[/] Run `monarch plan-reviews` first.")
+        console.print("[red]No review plan found.[/] Run `monarch review plan` first.")
         raise typer.Exit(1)
 
     plan = read_json(plan_path)
@@ -579,13 +617,16 @@ def llm_review_command(
     focus_categories = (
         {c.strip() for c in focus.split(",") if c.strip()} if focus else FOCUS_CATEGORIES
     )
-    plan = build_llm_review_plan(
-        focus_categories=focus_categories,
-        dry_run=dry_run,
-        backend=backend,
-        model=model,
-        skip_p2p=skip_p2p,
-    )
+    try:
+        plan = build_llm_review_plan(
+            focus_categories=focus_categories,
+            dry_run=dry_run,
+            backend=backend,
+            model=model,
+            skip_p2p=skip_p2p,
+        )
+    except FileNotFoundError as error:
+        exit_with_file_error(error)
     if dry_run:
         console.print(
             f"[cyan]Dry run:[/] {plan['transactionCount']} transactions, "
@@ -640,7 +681,7 @@ def apply_llm_review_command(
 
     plan_path = review_latest_dir() / "llm-review-plan.json"
     if not plan_path.exists():
-        console.print("[red]No LLM review plan found.[/] Run `monarch llm-review` first.")
+        console.print("[red]No LLM review plan found.[/] Run `monarch review llm` first.")
         raise typer.Exit(1)
 
     plan = read_json(plan_path)
@@ -807,7 +848,7 @@ def suggest_rules_command() -> None:
     )
     console.print(
         "[cyan]Next:[/] review data/rules/latest/rule-suggestions.md, "
-        "then run `monarch apply-rules`."
+        "then run `monarch rules apply`."
     )
 
 
@@ -1038,7 +1079,7 @@ def push_rule_command(
 def delete_monarch_rule_command(
     rule_id: Annotated[
         str,
-        typer.Argument(help="Monarch rule ID to delete (from list-monarch-rules)."),
+        typer.Argument(help="Monarch rule ID to delete (from `monarch rules list`)."),
     ],
     yes: Annotated[
         bool,
@@ -1134,6 +1175,52 @@ def retire_command(
         webbrowser.open(f"file://{out_path.absolute()}")
 
 
+def _register_grouped_aliases() -> None:
+    data_app.command("doctor")(doctor_command)
+    data_app.command("import")(import_command)
+    data_app.command("analyze")(analyze_command)
+    data_app.command("report")(report_command)
+    data_app.command("recurring")(recurring_command)
+    data_app.command("income-overlay")(income_overlay_command)
+    data_app.command("run")(run_command)
+    data_app.command("backup")(backup_command)
+    data_app.command("pull")(pull_command)
+
+    review_app.command("plan")(plan_reviews_command)
+    review_app.command("apply")(apply_reviews_command)
+    review_app.command("clear-plan")(plan_clear_reviews_command)
+    review_app.command("clear-apply")(apply_clear_reviews_command)
+    review_app.command("llm")(llm_review_command)
+    review_app.command("llm-apply")(apply_llm_review_command)
+
+    cleanup_app.command("plan")(cleanup_plan_command)
+    cleanup_app.command("review")(review_cleanup_command)
+    cleanup_app.command("apply")(apply_cleanup_command)
+
+    rules_app.command("suggest")(suggest_rules_command)
+    rules_app.command("apply")(apply_rules_command)
+    rules_app.command("push")(push_rule_command)
+    rules_app.command("list")(list_monarch_rules_command)
+    rules_app.command("delete")(delete_monarch_rule_command)
+
+    retirement_app.command("init")(init_profile_command)
+    retirement_app.command("run")(retire_command)
+
+
+_register_grouped_aliases()
+
+
+def _hide_secondary_flat_commands() -> None:
+    primary = {"doctor", "import", "run", "pull", "init", "retire"}
+    for command in app.registered_commands:
+        name = command.name
+        if name and name not in primary:
+            command.hidden = True
+
+
+_hide_secondary_flat_commands()
+
+
 def run_async(coro: Coroutine[object, object, T]) -> T:
     try:
         return asyncio.run(coro)
@@ -1147,3 +1234,28 @@ def run_async(coro: Coroutine[object, object, T]) -> T:
             raise typer.Exit(1) from error
         console.print(f"[red]Command failed:[/] {message}")
         raise typer.Exit(1) from error
+
+
+def resolve_run_bundle(csv_path: Path | None) -> Path:
+    if csv_path is not None:
+        return run_export(csv_path)
+
+    configured_csv = resolve_csv_path(get_config().monarch_csv_path)
+    if configured_csv is not None:
+        return run_export(configured_csv)
+
+    from .paths import normalized_latest_dir
+
+    bundle_path = normalized_latest_dir() / "bundle.json"
+    if bundle_path.exists():
+        return bundle_path
+
+    raise FileNotFoundError(
+        "No CSV or pulled data found. Run `monarch pull`, pass a CSV to "
+        "`monarch run transactions.csv`, or run `monarch import transactions.csv`."
+    )
+
+
+def exit_with_file_error(error: FileNotFoundError) -> NoReturn:
+    console.print(f"[red]Missing input:[/] {error}")
+    raise typer.Exit(1) from None

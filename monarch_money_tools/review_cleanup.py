@@ -34,7 +34,7 @@ def _read_char() -> str:
 def run_review_cleanup() -> None:
     plan_path = cleanup_latest_dir() / "cleanup-plan.json"
     if not plan_path.exists():
-        console.print("[red]No cleanup plan found.[/] Run `monarch cleanup-plan` first.")
+        console.print("[red]No cleanup plan found.[/] Run `monarch cleanup plan` first.")
         return
 
     plan = read_json(plan_path)
@@ -53,7 +53,7 @@ def run_review_cleanup() -> None:
     if not pending:
         console.print(
             f"[green]All {len(candidates)} candidates already reviewed.[/] "
-            "Run `monarch apply-cleanup` to apply accepted ones."
+            "Run `monarch cleanup apply` to apply accepted ones."
         )
         return
 
@@ -86,7 +86,7 @@ def run_review_cleanup() -> None:
 
         console.print()
         if key == "q":
-            console.print("[dim]Saved progress. Resume with `monarch review-cleanup`.[/]")
+            console.print("[dim]Saved progress. Resume with `monarch cleanup review`.[/]")
             return
         if key == "a":
             save_decision(transaction_id, "accepted")
@@ -100,5 +100,5 @@ def run_review_cleanup() -> None:
 
     accepted = sum(1 for decision in load_decisions().values() if decision == "accepted")
     console.print(
-        f"\n[green]Review complete.[/] {accepted} accepted. Run `monarch apply-cleanup` to apply."
+        f"\n[green]Review complete.[/] {accepted} accepted. Run `monarch cleanup apply` to apply."
     )

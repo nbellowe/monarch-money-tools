@@ -1,0 +1,661 @@
+# Canonical Taxonomy
+# Created: 2026-05-20
+# Source: 84 Monarch categories / 15 groups, reviewed and cleaned.
+# Result:  71 canonical categories / 15 groups (net -13 via merges, moves, retirements).
+#
+# analysis_treatment values:
+#   spending  — counted in expense reports
+#   income    — counted in income reports, excluded from spending
+#   transfer  — internal money movement, excluded from both
+#   ignore    — auto-generated entries (balance adjustments), excluded from all reports
+
+groups:
+  - name: Auto & Transport
+    analysis_treatment: spending
+  - name: Bills & Utilities
+    analysis_treatment: spending
+  - name: Education
+    analysis_treatment: spending
+  - name: Financial
+    analysis_treatment: spending
+  - name: Food & Dining
+    analysis_treatment: spending
+  - name: Gifts & Donations
+    analysis_treatment: spending
+  - name: Health
+    analysis_treatment: spending
+  - name: Housing
+    analysis_treatment: spending
+  - name: Income
+    analysis_treatment: income
+  - name: Lifestyle
+    analysis_treatment: spending
+  - name: Other
+    analysis_treatment: spending
+  - name: Pets
+    analysis_treatment: spending
+    note: Renamed from "Cats" group; broadened for any future pets.
+  - name: Shopping
+    analysis_treatment: spending
+  - name: Transfers
+    analysis_treatment: transfer
+  - name: Travel & Vacation
+    analysis_treatment: spending
+
+categories:
+
+  # ── Auto & Transport ─────────────────────────────────────────────────────────
+
+  - name: Auto Fines
+    group: Auto & Transport
+    description: Traffic tickets, parking violations, and government-issued vehicle fines.
+    analysis_treatment: spending
+
+  - name: Auto Maintenance & Fees
+    group: Auto & Transport
+    description: Vehicle repairs, routine maintenance, registration, smog checks, car wash.
+    excludes: [gas, parking, ride shares, insurance premiums]
+    analysis_treatment: spending
+    migrations:
+      - from_name: Auto Maintenance
+        from_group: Other
+        reason: Duplicate category; same meaning.
+
+  - name: Auto Payment
+    group: Auto & Transport
+    description: Monthly car loan or lease payments.
+    excludes: [insurance, maintenance]
+    analysis_treatment: spending
+
+  - name: Gas
+    group: Auto & Transport
+    description: Fuel purchases at gas stations for personal vehicles.
+    excludes: [home gas utility bill — see Bills & Utilities/Gas & Electric]
+    analysis_treatment: spending
+
+  - name: Parking & Tolls
+    group: Auto & Transport
+    description: Parking garages, meters, toll roads, and congestion charges.
+    analysis_treatment: spending
+
+  - name: Public Transit
+    group: Auto & Transport
+    description: Bus, metro, commuter rail, and ferry fares.
+    analysis_treatment: spending
+
+  - name: Taxi & Ride Shares
+    group: Auto & Transport
+    description: Uber, Lyft, taxis, and other on-demand ride services.
+    analysis_treatment: spending
+
+  - name: Van
+    group: Auto & Transport
+    description: Expenses specific to the van (vehicle-specific cost tracking).
+    analysis_treatment: spending
+
+  # ── Bills & Utilities ────────────────────────────────────────────────────────
+
+  - name: Gas & Electric
+    group: Bills & Utilities
+    description: Home gas and electricity utility bills.
+    analysis_treatment: spending
+
+  - name: Garbage
+    group: Bills & Utilities
+    description: Trash and recycling pickup service.
+    analysis_treatment: spending
+
+  - name: Internet & Cable
+    group: Bills & Utilities
+    description: Home internet service and cable TV.
+    analysis_treatment: spending
+
+  - name: Phone
+    group: Bills & Utilities
+    description: Mobile phone plan and home phone service.
+    analysis_treatment: spending
+
+  - name: Subscriptions
+    group: Bills & Utilities
+    description: Recurring subscriptions — streaming, software, news, club memberships, dues.
+    includes: [Netflix, Spotify, Adobe, gym memberships, Patreon, app subscriptions, annual dues]
+    excludes: [phone plan, internet — those have own categories]
+    analysis_treatment: spending
+    migrations:
+      - from_name: Media Subscriptions
+        from_group: Bills & Utilities
+        reason: Merged into single Subscriptions category.
+      - from_name: Tech Subscriptions
+        from_group: Bills & Utilities
+        reason: Merged into single Subscriptions category.
+      - from_name: Dues & Subscriptions
+        from_group: Other
+        reason: Merged into single Subscriptions category.
+
+  - name: Utilities
+    group: Bills & Utilities
+    description: Utility bills not covered by a specific category (water district, sewer, etc.).
+    analysis_treatment: spending
+    migrations:
+      - from_name: Utilities
+        from_group: Other
+        reason: Moved to correct group.
+
+  - name: Water
+    group: Bills & Utilities
+    description: Home water and sewer utility bills.
+    analysis_treatment: spending
+
+  # ── Education ────────────────────────────────────────────────────────────────
+
+  - name: Education
+    group: Education
+    description: Tuition, textbooks, courses, tutoring, school supplies, and certifications.
+    analysis_treatment: spending
+
+  # ── Financial ────────────────────────────────────────────────────────────────
+
+  - name: Cash & ATM
+    group: Financial
+    description: ATM withdrawals and untracked cash spending.
+    analysis_treatment: spending
+
+  - name: Financial & Legal Services
+    group: Financial
+    description: Accountant, attorney, financial advisor, and tax preparation fees.
+    analysis_treatment: spending
+
+  - name: Financial Fees
+    group: Financial
+    description: Bank fees, wire fees, foreign transaction fees, overdraft fees, late fees.
+    analysis_treatment: spending
+
+  - name: Insurance
+    group: Financial
+    description: Insurance premiums not tied to a specific vehicle (home, life, health, umbrella).
+    analysis_treatment: spending
+
+  - name: Loan Repayment
+    group: Financial
+    description: Non-mortgage debt repayments (student loans, personal loans, lines of credit).
+    analysis_treatment: spending
+
+  - name: Taxes
+    group: Financial
+    description: Federal, state, and local tax payments.
+    analysis_treatment: spending
+
+  # ── Food & Dining ────────────────────────────────────────────────────────────
+
+  - name: Coffee Shops
+    group: Food & Dining
+    description: Coffee shops, cafes, tea houses, and boba shops.
+    includes: [Starbucks, local cafes, Dutch Bros, boba]
+    excludes: [restaurant meals — see Restaurants & Bars]
+    analysis_treatment: spending
+    migrations:
+      - from_name: Coffee Shops
+        from_group: Other
+        reason: Moved to correct group.
+
+  - name: Groceries
+    group: Food & Dining
+    description: Supermarkets and grocery stores.
+    includes: [Safeway, Whole Foods, Trader Joe's, Costco food purchases]
+    excludes: [restaurants, meal delivery — see Restaurants & Bars]
+    analysis_treatment: spending
+
+  - name: Restaurants & Bars
+    group: Food & Dining
+    description: Restaurants, fast food, bars, and meal delivery services.
+    includes: [sit-down restaurants, fast food, DoorDash, Uber Eats, bars]
+    excludes: [coffee shops, grocery stores]
+    analysis_treatment: spending
+
+  # ── Gifts & Donations ────────────────────────────────────────────────────────
+
+  - name: Charity
+    group: Gifts & Donations
+    description: Charitable donations to nonprofits and causes.
+    analysis_treatment: spending
+
+  - name: Gifts
+    group: Gifts & Donations
+    description: Gifts purchased for other people.
+    analysis_treatment: spending
+
+  # ── Health ───────────────────────────────────────────────────────────────────
+
+  - name: Dentist
+    group: Health
+    description: Dental care, cleanings, orthodontics, and oral surgery.
+    analysis_treatment: spending
+
+  - name: Fitness
+    group: Health
+    description: Gym memberships, fitness classes, personal training, sports equipment.
+    excludes: [fitness app subscriptions — see Bills & Utilities/Subscriptions]
+    analysis_treatment: spending
+
+  - name: Medical
+    group: Health
+    description: Doctor visits, hospital, prescriptions, lab work, mental health, urgent care.
+    analysis_treatment: spending
+
+  - name: Vitamins
+    group: Health
+    description: Vitamins, supplements, and over-the-counter wellness products.
+    analysis_treatment: spending
+    migrations:
+      - from_name: vitamins
+        from_group: Health
+        reason: Capitalization fix.
+
+  # ── Housing ──────────────────────────────────────────────────────────────────
+
+  - name: Home Furnishings
+    group: Housing
+    description: Furniture, rugs, artwork, decor, and household goods.
+    includes: [IKEA, furniture stores, home goods stores like Crate & Barrel]
+    excludes: [tools and repairs — see Home Improvement]
+    analysis_treatment: spending
+    migrations:
+      - from_name: Furniture & Housewares
+        from_group: Other
+        reason: Duplicate category; same meaning. Moved to Housing.
+
+  - name: Home Improvement
+    group: Housing
+    description: Repairs, renovations, contractor work, tools, and building materials.
+    analysis_treatment: spending
+
+  - name: Mortgage
+    group: Housing
+    description: Monthly mortgage principal and interest payments.
+    analysis_treatment: spending
+
+  - name: Rent
+    group: Housing
+    description: Monthly rent payments for a primary or secondary residence.
+    excludes: [rental income received — see Income/Rent Income]
+    analysis_treatment: spending
+
+  # ── Income ───────────────────────────────────────────────────────────────────
+
+  - name: Dividends & Capital Gains
+    group: Income
+    description: Investment dividends, fund distributions, and realized capital gains on stock sales.
+    includes: [brokerage dividends, ETF distributions, reinvested dividends, stock sale proceeds]
+    analysis_treatment: income
+    migrations:
+      - from_name: Dividends and Capital Gains (too generic)
+        from_group: Transfers
+        reason: Unused duplicate; 0 transactions.
+
+  - name: Interest
+    group: Income
+    description: Interest earned on savings accounts, money market accounts, CDs, and bonds.
+    analysis_treatment: income
+
+  - name: Other Income
+    group: Income
+    description: Miscellaneous income not fitting a specific income category.
+    analysis_treatment: income
+
+  - name: Paychecks
+    group: Income
+    description: Regular salary and payroll direct deposits.
+    analysis_treatment: income
+
+  - name: Rent Income
+    group: Income
+    description: Rental income received from tenants.
+    analysis_treatment: income
+
+  # ── Lifestyle ────────────────────────────────────────────────────────────────
+
+  - name: Entertainment & Recreation
+    group: Lifestyle
+    description: Movies, concerts, sports events, theme parks, games, and general recreation.
+    analysis_treatment: spending
+
+  - name: Fun Money
+    group: Lifestyle
+    description: Discretionary personal spending allowance with no other classification.
+    analysis_treatment: spending
+
+  - name: Hobbies
+    group: Lifestyle
+    description: Hobby supplies, classes, and activities not covered by a specific category.
+    analysis_treatment: spending
+    migrations:
+      - from_name: Hobbies
+        from_group: Other
+        reason: Moved to correct group.
+
+  - name: Personal Care
+    group: Lifestyle
+    description: Haircuts, salon services, spa, massages, and personal grooming services.
+    includes: [haircuts, salon, waxing, massages, nail care]
+    excludes: [personal care products purchased at retail — see Shopping/Skin/Hair Care]
+    analysis_treatment: spending
+    migrations:
+      - from_name: Personal
+        from_group: Other
+        reason: Merged; same meaning. "Personal Care" is the clearer name.
+
+  - name: Skiing
+    group: Lifestyle
+    description: Ski lift tickets, day passes, season passes, ski lessons, and on-mountain expenses.
+    excludes:
+      - travel to resort (flights, lodging) — see Travel & Vacation/Ski Trip
+      - ski equipment purchases — see Shopping/Ski Gear
+    analysis_treatment: spending
+    migrations:
+      - from_name: Skiing
+        from_group: Other
+        reason: Moved to Lifestyle (skiing is an ongoing hobby, not a one-time trip event).
+
+  # ── Other ────────────────────────────────────────────────────────────────────
+
+  - name: Business Travel & Meals
+    group: Other
+    description: Work-related travel and meal expenses (reimbursable or tax-deductible).
+    analysis_treatment: spending
+
+  - name: Cleaning
+    group: Other
+    description: House cleaning services and household cleaning supplies.
+    analysis_treatment: spending
+
+  - name: Miscellaneous
+    group: Other
+    description: Transactions that don't fit any other category.
+    analysis_treatment: spending
+
+  - name: Office Supplies & Expenses
+    group: Other
+    description: Office supplies, printer consumables, and work-from-home equipment.
+    analysis_treatment: spending
+
+  - name: Postage & Shipping
+    group: Other
+    description: Stamps, shipping costs, and courier/delivery service fees.
+    analysis_treatment: spending
+
+  - name: Service Charges/Fees
+    group: Other
+    description: Service charges and miscellaneous fees not classified elsewhere.
+    analysis_treatment: spending
+
+  - name: Uncategorized
+    group: Other
+    description: Default bucket for transactions awaiting categorization.
+    analysis_treatment: spending
+
+  # ── Pets ─────────────────────────────────────────────────────────────────────
+
+  - name: Cat Supplies
+    group: Pets
+    description: Cat food, litter, toys, bedding, and accessories.
+    analysis_treatment: spending
+    migrations:
+      - from_name: Cat Supplies
+        from_group: Cats
+        reason: Group renamed from Cats to Pets.
+
+  - name: Vet
+    group: Pets
+    description: Veterinary visits, medications, and pet health costs.
+    analysis_treatment: spending
+    migrations:
+      - from_name: Vet
+        from_group: Cats
+        reason: Group renamed from Cats to Pets.
+
+  # ── Shopping ─────────────────────────────────────────────────────────────────
+
+  - name: Books
+    group: Shopping
+    description: Physical books, e-books, and audiobooks.
+    analysis_treatment: spending
+
+  - name: Clothing
+    group: Shopping
+    description: Apparel, shoes, and fashion accessories.
+    analysis_treatment: spending
+
+  - name: Craft
+    group: Shopping
+    description: Craft supplies and materials.
+    analysis_treatment: spending
+
+  - name: Electronics
+    group: Shopping
+    description: Consumer electronics, gadgets, and accessories.
+    analysis_treatment: spending
+
+  - name: Shopping
+    group: Shopping
+    description: General retail purchases not covered by a specific Shopping subcategory.
+    analysis_treatment: spending
+
+  - name: Ski Gear
+    group: Shopping
+    description: Skis, boots, bindings, poles, helmets, and ski apparel purchases.
+    excludes: [lift tickets — see Lifestyle/Skiing, ski trip travel — see Travel & Vacation/Ski Trip]
+    analysis_treatment: spending
+
+  - name: Skin/Hair Care
+    group: Shopping
+    description: Skincare products, hair care products, and beauty supplies purchased at retail.
+    excludes: [salon or spa services — see Lifestyle/Personal Care]
+    analysis_treatment: spending
+
+  # ── Transfers ────────────────────────────────────────────────────────────────
+
+  - name: Balance Adjustments
+    group: Transfers
+    description: Auto-generated balance correction entries from Monarch or bank feeds.
+    analysis_treatment: ignore
+
+  - name: Buy Investment
+    group: Transfers
+    description: Investment asset purchases (stocks, ETFs, mutual funds, bonds, options).
+    analysis_treatment: transfer
+    migrations:
+      - from_name: Buy
+        from_group: Transfers
+        reason: Merged; both represent investment purchases from the same brokerage accounts.
+
+  - name: Credit Card Payment
+    group: Transfers
+    description: Credit card bill payments from a checking or savings account.
+    analysis_treatment: transfer
+
+  - name: Sell Investment
+    group: Transfers
+    description: Investment asset sales — stock, ETF, mutual fund, or options proceeds landing as cash.
+    note: The gross proceeds are a transfer (stock→cash). Capital gains are taxable events tracked externally; do not re-categorize these as Income.
+    analysis_treatment: transfer
+    migrations:
+      - from_name: Sell
+        from_group: Transfers
+        reason: Merged; same meaning.
+
+  - name: Transfer
+    group: Transfers
+    description: Internal transfers between personal accounts (checking↔savings, brokerage sweeps, Zelle between own accounts).
+    analysis_treatment: transfer
+
+  - name: Household Rebalance
+    group: Transfers
+    description: Periodic rebalancing transfers between household members to balance shared expenses.
+    analysis_treatment: transfer
+
+  # ── Travel & Vacation ────────────────────────────────────────────────────────
+
+  - name: Flights
+    group: Travel & Vacation
+    description: Airline tickets and airfare.
+    analysis_treatment: spending
+
+  - name: Hotel
+    group: Travel & Vacation
+    description: Hotel, motel, Airbnb, and other lodging accommodations.
+    analysis_treatment: spending
+
+  - name: Misc Travel Expenses
+    group: Travel & Vacation
+    description: General travel expenses while away from home (local transport, meals, activities, incidentals).
+    analysis_treatment: spending
+    migrations:
+      - from_name: Travel & Vacation
+        from_group: Other
+        reason: Same concept; was placed in Other before Travel & Vacation group existed.
+
+  - name: Ski Trip
+    group: Travel & Vacation
+    description: Travel costs for ski trips specifically — flights, lodging, rental cars to/from resort.
+    excludes:
+      - lift tickets — see Lifestyle/Skiing
+      - ski gear purchases — see Shopping/Ski Gear
+    analysis_treatment: spending
+
+# ── Retirements ──────────────────────────────────────────────────────────────
+# Categories to delete from Monarch after migrating transactions.
+# All transactions must be remapped before deleting the source category.
+
+retirements:
+  - name: Auto Maintenance
+    group: Other
+    action: remap_then_delete
+    remap_to: Auto & Transport/Auto Maintenance & Fees
+    txn_count: 62
+
+  - name: Dividends and Capital Gains (too generic)
+    group: Transfers
+    action: delete
+    remap_to: null
+    txn_count: 0
+
+  - name: Furniture & Housewares
+    group: Other
+    action: remap_then_delete
+    remap_to: Housing/Home Furnishings
+    txn_count: 19
+
+  - name: Utilities
+    group: Other
+    action: remap_then_delete
+    remap_to: Bills & Utilities/Utilities
+    txn_count: 87
+
+  - name: Media Subscriptions
+    group: Bills & Utilities
+    action: remap_then_delete
+    remap_to: Bills & Utilities/Subscriptions
+    txn_count: 102
+
+  - name: Tech Subscriptions
+    group: Bills & Utilities
+    action: delete
+    remap_to: null
+    txn_count: 0
+
+  - name: Dues & Subscriptions
+    group: Other
+    action: remap_then_delete
+    remap_to: Bills & Utilities/Subscriptions
+    txn_count: 90
+
+  - name: Buy
+    group: Transfers
+    action: remap_then_delete
+    remap_to: Transfers/Buy Investment
+    txn_count: 124
+
+  - name: Sell
+    group: Transfers
+    action: remap_then_delete
+    remap_to: Transfers/Sell Investment
+    txn_count: 69
+
+  - name: Personal
+    group: Other
+    action: remap_then_delete
+    remap_to: Lifestyle/Personal Care
+    txn_count: 46
+
+  - name: Travel & Vacation
+    group: Other
+    action: remap_then_delete
+    remap_to: Travel & Vacation/Misc Travel Expenses
+    txn_count: 17
+
+  - name: Coffee Shops
+    group: Other
+    action: remap_then_delete
+    remap_to: Food & Dining/Coffee Shops
+    txn_count: 46
+    note: Create Food & Dining/Coffee Shops first, then remap.
+
+  - name: Hobbies
+    group: Other
+    action: remap_then_delete
+    remap_to: Lifestyle/Hobbies
+    txn_count: 41
+    note: Create Lifestyle/Hobbies first, then remap.
+
+  - name: Skiing
+    group: Other
+    action: remap_then_delete
+    remap_to: Lifestyle/Skiing
+    txn_count: 73
+    note: Create Lifestyle/Skiing first, then remap.
+
+  - name: Cat Supplies
+    group: Cats
+    action: remap_then_delete
+    remap_to: Pets/Cat Supplies
+    txn_count: 154
+    note: Create Pets group and Pets/Cat Supplies first, then remap.
+
+  - name: Vet
+    group: Cats
+    action: remap_then_delete
+    remap_to: Pets/Vet
+    txn_count: 0
+
+  - name: vitamins
+    group: Health
+    action: remap_then_delete
+    remap_to: Health/Vitamins
+    txn_count: 0
+    note: Create Health/Vitamins first, then remap.
+
+  - name: Check
+    group: Other
+    action: remap_then_delete
+    remap_to: Other/Miscellaneous
+    txn_count: 1
+
+  - name: Child Activities
+    group: Other
+    action: delete
+    remap_to: null
+    txn_count: 0
+
+  - name: Pets
+    group: Other
+    action: delete
+    remap_to: null
+    txn_count: 0
+    note: Replaced by the new Pets group.
+
+  - name: Home Furnishings
+    group: Housing
+    action: keep_as_canonical
+    remap_to: null
+    txn_count: 0
+    note: This is the canonical target for Furniture & Housewares migrations.

@@ -29,7 +29,7 @@ from typing import Any
 import yaml
 
 from .env import get_config
-from .paths import normalized_latest_dir, review_latest_dir, taxonomy_dir
+from .paths import canonical_taxonomy_file, normalized_latest_dir, review_latest_dir
 from .storage import read_json, write_csv, write_json, write_text
 
 JsonObject = dict[str, Any]
@@ -62,7 +62,7 @@ def build_llm_review_plan(
     config = get_config()
     bundle = read_json(normalized_latest_dir() / "bundle.json")
 
-    taxonomy_path = taxonomy_dir() / "canonical-taxonomy.yaml"
+    taxonomy_path = canonical_taxonomy_file()
     with open(taxonomy_path, encoding="utf-8") as f:
         taxonomy: JsonObject = yaml.safe_load(f)
 

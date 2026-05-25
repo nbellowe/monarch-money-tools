@@ -10,7 +10,9 @@ from .storage import read_json, reset_dir, write_json
 def run_analyze() -> dict[str, Any]:
     bundle_path = normalized_latest_dir() / "bundle.json"
     if not bundle_path.exists():
-        raise FileNotFoundError("No normalized bundle found. Run `monarch import` first.")
+        raise FileNotFoundError(
+            "No normalized bundle found. Run `monarch pull` or `monarch import <csv>` first."
+        )
 
     prepared = prepare_analysis(read_json(bundle_path))
     rule_opportunities = prepared["heuristicRuleOpportunities"]

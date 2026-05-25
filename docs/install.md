@@ -39,16 +39,44 @@ creates a starter `profile.yaml` if needed, and runs `monarch doctor`.
 
 ## Auth Setup
 
-The CLI uses browser cookie auth by default. After logging in to [monarchmoney.com](https://monarchmoney.com):
+The CLI supports several auth modes for API write-back. Browser cookie or saved-session auth is
+recommended because it avoids storing your Monarch password locally.
 
-1. Open DevTools → **Application** → **Cookies**
-2. Copy the session cookie value for `monarchmoney.com`
-3. Either:
-    - Set `MONARCH_SESSION_TOKEN=<value>` in a `.env` file at your working directory, **or**
-    - Let the `monarchmoney` library auto-detect your browser session
+### Browser Cookie Auth
 
-Alternatively, set `MONARCH_EMAIL`, `MONARCH_PASSWORD`, and optionally
-`MONARCH_MFA_SECRET` in `.env`, then run `monarch pull`.
+After logging in to [monarchmoney.com](https://monarchmoney.com):
+
+1. Open DevTools -> **Application** -> **Cookies**
+2. Copy the full cookie header for Monarch
+3. Put it in `.env`:
+
+```bash
+MONARCH_COOKIE="session_id=...; csrftoken=..."
+```
+
+If the cookie does not contain `csrftoken`, also set:
+
+```bash
+MONARCH_CSRF_TOKEN="..."
+```
+
+### Session Token Auth
+
+```bash
+MONARCH_SESSION_TOKEN="..."
+```
+
+### Password Fallback
+
+Password auth is available, but it is not the preferred default:
+
+```bash
+MONARCH_EMAIL="you@example.com"
+MONARCH_PASSWORD="..."
+MONARCH_MFA_SECRET="..."  # optional
+```
+
+`monarch init` can help populate `.env`. The file is local-only and should remain gitignored.
 
 ---
 
@@ -59,4 +87,5 @@ monarch doctor
 ```
 
 This checks for required config files and artifacts. All checks should pass before running
-other commands.
+write-back commands. Data artifact checks will show as missing until you run `monarch pull` or
+`monarch run <csv>`.

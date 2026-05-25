@@ -13,23 +13,30 @@ cleanup, and rule management — beyond what the Monarch UI provides.
 
 ## Quick Start
 
+API-backed workflow:
+
 ```bash
-# 1. Pull your transaction data from Monarch
 monarch init
 monarch pull
+monarch data analyze
+monarch data report
+open reports/latest/summary.md
+```
 
-# 2. Analyze and generate reports
-monarch run
+CSV-only workflow:
 
-# 3. Review the Markdown report
-open reports/latest/report.md
+```bash
+monarch run ~/Downloads/monarch_transactions.csv
+open reports/latest/summary.md
+```
 
-# 4. Plan which Needs-Review transactions to resolve
-monarch plan-reviews
+Categorization cleanup:
 
-# 5. Preview, then apply the plan to Monarch
-monarch apply-reviews --dry-run
-monarch apply-reviews --yes
+```bash
+monarch review plan
+open reports/latest/review-plan.md
+monarch review apply --dry-run
+monarch review apply --yes
 ```
 
 ---
@@ -45,4 +52,17 @@ programmatic control:
 - **Cashflow:** Separate salary, reimbursements, transfers, investments, and spending
 - **Retirement Simulator:** Generate a personalized Monte Carlo retirement simulation HTML from a `profile.yaml` config
 
-→ [Install](install.md) | [Command Reference](commands.md) | [Retirement Simulator](retirement-simulator.md)
+## How The Pieces Fit
+
+```mermaid
+flowchart TD
+  A["Monarch API or CSV export"] --> B["Normalized local bundle"]
+  B --> C["Analysis reports"]
+  C --> D["Review, cleanup, and rule plans"]
+  D --> E{"Apply with --dry-run first?"}
+  E -->|Looks right| F["Write changes back to Monarch"]
+  E -->|Needs adjustment| C
+```
+
+Start with [Install](install.md), then follow the [Workflows](workflows.md) guide for the
+use case you care about.
