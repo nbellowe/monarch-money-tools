@@ -21,16 +21,13 @@ Output: data/cleanup/latest/{cleanup-plan.json, cleanup-plan.csv,
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 from .paths import canonical_taxonomy_file, cleanup_latest_dir, normalized_latest_dir
-from .storage import read_json, reset_dir, write_csv, write_json, write_text
-
-JsonObject = dict[str, Any]
+from .storage import JsonObject, now_iso, read_json, reset_dir, write_csv, write_json, write_text
 
 MIGRATION_CONFIDENCE = 1.0
 MIN_PROFILE_TRANSACTIONS = 4
@@ -99,7 +96,7 @@ def build_taxonomy_cleanup_plan(taxonomy_path: Path | None = None) -> JsonObject
     categories_to_create = _identify_required_new_categories(taxonomy, category_id_by_name_group)
 
     plan: JsonObject = {
-        "generatedAt": _now_iso(),
+        "generatedAt": now_iso(),
         "summary": {
             "taxonomyMigrationCount": len(migration_candidates),
             "merchantConsistencyCount": len(consistency_candidates),
@@ -379,5 +376,3 @@ def _render_cleanup_plan(plan: JsonObject) -> str:
 """
 
 
-def _now_iso() -> str:
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")

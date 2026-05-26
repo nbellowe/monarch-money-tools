@@ -3,9 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from .paths import analysis_latest_dir, reports_latest_dir
-from .storage import ensure_dir, read_json, write_csv, write_text
-
-JsonObject = dict[str, Any]
+from .storage import JsonObject, ensure_dir, read_json, write_csv, write_text
 
 
 def run_report() -> None:

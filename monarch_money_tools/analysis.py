@@ -3,9 +3,8 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
 
-JsonObject = dict[str, Any]
+from .storage import JsonObject, now_iso, round2
 
 RECENT_DAYS = 45
 IGNORED_CATEGORY_WORDS = {"transfer", "credit card payment"}
@@ -392,14 +391,6 @@ def is_recent(date_string: str) -> bool:
 
 def clamp(value: float, minimum: float, maximum: float) -> float:
     return min(maximum, max(minimum, round2(value)))
-
-
-def round2(value: float) -> float:
-    return round(value * 100) / 100
-
-
-def now_iso() -> str:
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def strip_internal_keys(rows: list[JsonObject]) -> list[JsonObject]:

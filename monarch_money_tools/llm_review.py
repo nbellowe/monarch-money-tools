@@ -23,16 +23,12 @@ import json
 import subprocess
 import textwrap
 from collections import defaultdict
-from datetime import UTC, datetime
-from typing import Any
 
 import yaml
 
 from .env import get_config
 from .paths import canonical_taxonomy_file, normalized_latest_dir, review_latest_dir
-from .storage import read_json, write_csv, write_json, write_text
-
-JsonObject = dict[str, Any]
+from .storage import JsonObject, now_iso, read_json, write_csv, write_json, write_text
 
 FOCUS_CATEGORIES = {"Uncategorized", "Misc Travel Expenses", "Paychecks"}
 EXCLUDE_SUGGESTIONS = {"Uncategorized"}
@@ -301,7 +297,7 @@ def _assemble_plan(
     high = [u for u in updates if u["confidence"] >= HIGH_CONFIDENCE_THRESHOLD]
     low = [u for u in updates if u["confidence"] < HIGH_CONFIDENCE_THRESHOLD]
     return {
-        "generatedAt": _now_iso(),
+        "generatedAt": now_iso(),
         "summary": {
             "focusCategories": sorted(focus_categories),
             "inputTransactionCount": len(transactions),
@@ -366,5 +362,3 @@ def _render_plan(plan: JsonObject) -> str:
 """
 
 
-def _now_iso() -> str:
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")

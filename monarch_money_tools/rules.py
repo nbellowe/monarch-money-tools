@@ -27,13 +27,9 @@ from __future__ import annotations
 import re
 import uuid
 from collections import Counter, defaultdict
-from datetime import UTC, datetime
-from typing import Any
 
 from .paths import normalized_latest_dir, rules_latest_dir
-from .storage import read_json, reset_dir, write_csv, write_json, write_text
-
-JsonObject = dict[str, Any]
+from .storage import JsonObject, now_iso, read_json, reset_dir, write_csv, write_json, write_text
 
 MIN_MERCHANT_TRANSACTIONS = 4
 MIN_CATEGORY_CONSISTENCY = 0.90
@@ -68,7 +64,7 @@ def build_rule_suggestions() -> JsonObject:
     rules = _consolidate_rules(merchant_profiles, nr_profiles)
 
     reset_dir(rules_latest_dir())
-    generated_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    generated_at = now_iso()
 
     output: JsonObject = {
         "generatedAt": generated_at,
@@ -377,7 +373,7 @@ def build_apply_plan(
             )
 
     return {
-        "generatedAt": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "generatedAt": now_iso(),
         "enabledRules": len(rules),
         "updates": updates,
         "summary": {"updateCount": len(updates)},
