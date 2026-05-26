@@ -85,6 +85,24 @@ def _print_review_updates_dry_run(updates: list[dict[str, Any]]) -> None:
         console.print(f"[dim]... and {len(updates) - 50} more[/]")
 
 
+def _print_clear_review_updates_dry_run(updates: list[dict[str, Any]]) -> None:
+    table = Table(title=f"Dry run - {len(updates)} clears")
+    table.add_column("Merchant")
+    table.add_column("Amount", justify="right")
+    table.add_column("Category")
+    table.add_column("Account")
+    for update in updates[:50]:
+        table.add_row(
+            update["merchantName"],
+            _format_amount(update.get("amount")),
+            update["currentCategory"],
+            update.get("accountName", ""),
+        )
+    console.print(table)
+    if len(updates) > 50:
+        console.print(f"[dim]... and {len(updates) - 50} more[/]")
+
+
 @app.command("doctor")
 def doctor_command() -> None:
     """Check local setup and generated artifact availability."""
@@ -524,21 +542,7 @@ def apply_clear_reviews_command(
         raise typer.Exit(0)
 
     if dry_run:
-        table = Table(title=f"Dry run - {len(updates)} clears")
-        table.add_column("Merchant")
-        table.add_column("Amount", justify="right")
-        table.add_column("Category")
-        table.add_column("Account")
-        for update in updates[:50]:
-            table.add_row(
-                update["merchantName"],
-                _format_amount(update.get("amount")),
-                update["currentCategory"],
-                update.get("accountName", ""),
-            )
-        console.print(table)
-        if len(updates) > 50:
-            console.print(f"[dim]... and {len(updates) - 50} more[/]")
+        _print_clear_review_updates_dry_run(updates)
         return
 
     if not yes:
@@ -793,13 +797,23 @@ def bulk_clear_reviews_command(
         int | None,
         typer.Option("--limit", min=1, help="Apply at most this many clears."),
     ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Show what would be applied without calling the API.",
+            envvar="MONARCH_DRY_RUN",
+        ),
+    ] = False,
 ) -> None:
     """Build and optionally apply a clear-review plan for trusted categories."""
     trust_categories = {c.strip() for c in categories.split(",") if c.strip()}
     plan = build_clear_review_plan(sorted(trust_categories))
+    updates = list(plan.get("updates") or [])
+    if limit is not None:
+        updates = updates[:limit]
     planned_count = int(plan["summary"]["plannedUpdateCount"])
-    apply_count = min(planned_count, limit) if limit is not None else planned_count
-    if not apply_count:
+    if not updates:
         console.print("[yellow]No transactions to clear.[/]")
         raise typer.Exit(0)
 
@@ -807,8 +821,12 @@ def bulk_clear_reviews_command(
         f"Clear-review plan written with [bold]{planned_count}[/] transactions "
         f"in: {', '.join(sorted(trust_categories))}"
     )
+    if dry_run:
+        _print_clear_review_updates_dry_run(updates)
+        return
+
     if not yes:
-        confirmed = typer.confirm(f"Apply {apply_count} planned review clears now?")
+        confirmed = typer.confirm(f"Apply {len(updates)} planned review clears now?")
         if not confirmed:
             raise typer.Abort()
 
@@ -824,7 +842,10 @@ def portfolio_command(
     ] = 20,
     save: Annotated[
         bool,
-        typer.Option("--save", help="Write holdings JSON to data/latest/portfolio-holdings.json."),
+        typer.Option(
+            "--save",
+            help="Write holdings JSON to data/normalized/latest/portfolio-holdings.json.",
+        ),
     ] = False,
 ) -> None:
     """Fetch portfolio holdings from Monarch and display allocation summary."""
@@ -887,7 +908,7 @@ def suggest_rules_command() -> None:
     )
     console.print(
         "[cyan]Next:[/] review data/rules/latest/rule-suggestions.md, "
-        "then run `monarch rules apply`."
+        "then run `monarch rules apply --dry-run`."
     )
 
 
@@ -1036,6 +1057,14 @@ def push_rule_command(
         bool,
         typer.Option("--yes", help="Create without confirmation prompt."),
     ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Show the Monarch rule that would be created without calling the API.",
+            envvar="MONARCH_DRY_RUN",
+        ),
+    ] = False,
 ) -> None:
     """Push a single local rule suggestion into Monarch as a live transaction rule."""
     from .rules import load_rule_suggestions
@@ -1064,6 +1093,10 @@ def push_rule_command(
             console.print(f"    … and {len(merchant_names) - 5} more")
     if merchant_pattern:
         console.print(f"  Pattern (contains): {merchant_pattern}")
+
+    if dry_run:
+        console.print("[cyan]Dry run:[/] no Monarch rule was created.")
+        return
 
     if not yes:
         confirmed = typer.confirm("Push this rule to Monarch?")
@@ -1130,8 +1163,20 @@ def delete_monarch_rule_command(
         bool,
         typer.Option("--yes", help="Delete without confirmation prompt."),
     ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Show which Monarch rule would be deleted without calling the API.",
+            envvar="MONARCH_DRY_RUN",
+        ),
+    ] = False,
 ) -> None:
     """Delete a transaction rule from Monarch by its ID."""
+    if dry_run:
+        console.print(f"[cyan]Dry run:[/] would delete Monarch rule {rule_id}.")
+        return
+
     if not yes:
         confirmed = typer.confirm(f"Delete Monarch rule {rule_id}?")
         if not confirmed:

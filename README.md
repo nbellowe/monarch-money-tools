@@ -70,6 +70,9 @@ monarch review apply --dry-run
 monarch review apply --yes
 ```
 
+Set `MONARCH_DRY_RUN=1` to make write-back commands preview instead of calling the
+Monarch API.
+
 ---
 
 ## Command Reference
@@ -94,11 +97,11 @@ monarch review apply --yes
 | Command | Description |
 |---|---|
 | `monarch review plan` | Plan category updates for Needs-Review transactions |
-| `monarch review apply` | Apply the latest review plan to Monarch |
+| `monarch review apply` | Apply the latest review plan to Monarch; supports `--dry-run` |
 | `monarch review clear-plan` | Plan clearing Needs-Review on trusted categories |
-| `monarch review clear-apply` | Apply the clear-review plan |
+| `monarch review clear-apply` | Apply the clear-review plan; supports `--dry-run` |
 | `monarch review llm` | Run an LLM-assisted categorization pass |
-| `monarch review llm-apply` | Apply the latest LLM review plan |
+| `monarch review llm-apply` | Apply the latest LLM review plan; supports `--dry-run` |
 
 ### Cleanup
 
@@ -106,17 +109,17 @@ monarch review apply --yes
 |---|---|
 | `monarch cleanup plan` | Generate taxonomy migration and merchant-consistency candidates |
 | `monarch cleanup review` | Interactively accept, reject, or skip cleanup candidates |
-| `monarch cleanup apply` | Apply the latest cleanup plan to Monarch |
+| `monarch cleanup apply` | Apply the latest cleanup plan to Monarch; supports `--dry-run` |
 
 ### Rules
 
 | Command | Description |
 |---|---|
 | `monarch rules suggest` | Analyze transaction history and suggest automation rules |
-| `monarch rules apply` | Apply enabled rules from the latest suggestions |
-| `monarch rules push <id>` | Push a single local rule suggestion into Monarch |
+| `monarch rules apply` | Apply enabled rules from the latest suggestions; supports `--dry-run` |
+| `monarch rules push <id>` | Push a single local rule suggestion into Monarch; supports `--dry-run` |
 | `monarch rules list` | List all rules currently stored in Monarch |
-| `monarch rules delete <id>` | Delete a rule from Monarch by ID |
+| `monarch rules delete <id>` | Delete a rule from Monarch by ID; supports `--dry-run` |
 
 ### Portfolio
 

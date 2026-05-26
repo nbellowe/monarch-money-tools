@@ -138,6 +138,47 @@ def _write_llm_review_plan(tmp_path: Path) -> None:
     write_json(tmp_path / "data/review/latest/llm-review-plan.json", plan)
 
 
+def _write_clear_review_bundle(tmp_path: Path) -> None:
+    write_json(
+        tmp_path / "data/normalized/latest/bundle.json",
+        {
+            "transactions": [
+                {
+                    "id": "t7",
+                    "date": "2026-05-07",
+                    "merchantName": "Savings Transfer",
+                    "accountName": "Checking",
+                    "signedAmount": -100.00,
+                    "categoryName": "Transfer",
+                    "needsReview": True,
+                    "isPending": False,
+                }
+            ]
+        },
+    )
+
+
+def _write_rule_suggestions(tmp_path: Path) -> None:
+    write_json(
+        tmp_path / "data/rules/latest/rule-suggestions.json",
+        {
+            "rules": [
+                {
+                    "id": "food",
+                    "name": "Food rule",
+                    "enabled": True,
+                    "match": {"merchantNames": ["Cafe"], "needsReview": True},
+                    "action": {
+                        "setCategory": "Restaurants & Bars",
+                        "setCategoryId": "cat-food",
+                        "clearNeedsReview": True,
+                    },
+                }
+            ]
+        },
+    )
+
+
 def test_apply_reviews_dry_run_prints_table_and_skips_api(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -159,6 +200,60 @@ def test_apply_reviews_dry_run_prints_table_and_skips_api(
     assert "Gas Station" in result.output
     assert "-$45.00" in result.output
     assert "Dining" in result.output
+
+
+def test_bulk_clear_reviews_monarch_dry_run_skips_api(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_clear_review_bundle(tmp_path)
+
+    api_called = []
+    monkeypatch.setattr(
+        "monarch_money_tools.cli.run_async",
+        lambda coro: api_called.append(coro) or {},
+    )
+
+    result = runner.invoke(app, ["bulk-clear-reviews"], env={"MONARCH_DRY_RUN": "1"})
+
+    assert result.exit_code == 0, result.output
+    assert not api_called
+    assert "Dry run - 1 clears" in result.output
+    assert "Savings Transfer" in result.output
+
+
+def test_push_rule_monarch_dry_run_skips_api(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_rule_suggestions(tmp_path)
+
+    api_called = []
+    monkeypatch.setattr(
+        "monarch_money_tools.cli.run_async",
+        lambda coro: api_called.append(coro) or {},
+    )
+
+    result = runner.invoke(app, ["rules", "push", "food"], env={"MONARCH_DRY_RUN": "1"})
+
+    assert result.exit_code == 0, result.output
+    assert not api_called
+    assert "Food rule" in result.output
+    assert "no Monarch rule was created" in result.output
+
+
+def test_delete_rule_monarch_dry_run_skips_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    api_called = []
+    monkeypatch.setattr(
+        "monarch_money_tools.cli.run_async",
+        lambda coro: api_called.append(coro) or {},
+    )
+
+    result = runner.invoke(app, ["rules", "delete", "rule-123"], env={"MONARCH_DRY_RUN": "1"})
+
+    assert result.exit_code == 0, result.output
+    assert not api_called
+    assert "would delete Monarch rule rule-123" in result.output
 
 
 def test_apply_clear_reviews_dry_run_prints_table_and_skips_api(

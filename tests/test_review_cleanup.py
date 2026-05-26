@@ -70,6 +70,7 @@ def test_apply_cleanup_respects_decision_log(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("MONARCH_DRY_RUN", raising=False)
     _make_plan(tmp_path)
     save_decision("txn-1", "accepted")
     save_decision("txn-2", "rejected")

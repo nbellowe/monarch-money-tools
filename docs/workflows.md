@@ -57,6 +57,9 @@ flowchart TD
 Every write-back workflow should follow this pattern. The generated `data/` and `reports/`
 artifacts are local and gitignored.
 
+You can also set `MONARCH_DRY_RUN=1` while reviewing plans. Commands that write back to
+Monarch will preview the proposed change instead of calling the API.
+
 ## Useful Command Groups
 
 | Group | Purpose |

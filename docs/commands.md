@@ -52,9 +52,9 @@ commands are easier to scan.
 |---|---|
 | `monarch rules suggest` | Analyze transaction history and suggest automation rules |
 | `monarch rules apply` | Apply enabled rules from the latest suggestions; supports `--dry-run` |
-| `monarch rules push <id>` | Push a single local rule suggestion into Monarch |
+| `monarch rules push <id>` | Push a single local rule suggestion into Monarch; supports `--dry-run` |
 | `monarch rules list` | List all rules currently stored in Monarch |
-| `monarch rules delete <id>` | Delete a rule from Monarch by ID |
+| `monarch rules delete <id>` | Delete a rule from Monarch by ID; supports `--dry-run` |
 
 ---
 
