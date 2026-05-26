@@ -9,7 +9,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from .analyzer import run_analyze
+from .analysis import run_analyze
 from .backup import create_pre_cleanup_backup, verify_pre_cleanup_backup
 from .cashflow import run_income_overlay
 from .doctor import collect_checks, has_python_project

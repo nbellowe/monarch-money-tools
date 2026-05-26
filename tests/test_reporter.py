@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from monarch_money_tools.analyzer import run_analyze
+from monarch_money_tools.analysis import run_analyze
 from monarch_money_tools.exporter import run_export
 from monarch_money_tools.reporter import run_report
 

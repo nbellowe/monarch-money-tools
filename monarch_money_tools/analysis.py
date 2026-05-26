@@ -3,8 +3,10 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
-from .storage import JsonObject, now_iso, round2
+from .paths import analysis_latest_dir
+from .storage import JsonObject, load_bundle, now_iso, reset_dir, round2, write_json
 
 RECENT_DAYS = 45
 IGNORED_CATEGORY_WORDS = {"transfer", "credit card payment"}
@@ -395,3 +397,30 @@ def clamp(value: float, minimum: float, maximum: float) -> float:
 
 def strip_internal_keys(rows: list[JsonObject]) -> list[JsonObject]:
     return [{key: value for key, value in row.items() if key != "merchantKey"} for row in rows]
+
+
+def run_analyze() -> dict[str, Any]:
+    prepared = prepare_analysis(load_bundle())
+    rule_opportunities = prepared["heuristicRuleOpportunities"]
+    analysis = {
+        "generatedAt": prepared["generatedAt"],
+        "summary": {
+            **prepared["summary"],
+            "ruleOpportunityCount": len(rule_opportunities),
+        },
+        "ruleGeneration": {
+            "mode": "heuristic",
+            "candidateCount": len(prepared["ruleCandidates"]),
+            "batchCount": 0,
+            "warning": "AI rule generation has not been ported to the Python CLI yet.",
+        },
+        "miscategorizations": prepared["miscategorizations"],
+        "ownerReviews": prepared["ownerReviews"],
+        "ruleOpportunities": rule_opportunities,
+    }
+
+    reset_dir(analysis_latest_dir())
+    write_json(analysis_latest_dir() / "analysis.json", analysis)
+    write_json(analysis_latest_dir() / "summary.json", analysis["summary"])
+    write_json(analysis_latest_dir() / "rule-candidates.json", prepared["ruleCandidates"])
+    return analysis
