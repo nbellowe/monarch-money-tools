@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 from monarch_money_tools.csv_adapter import import_transactions_from_csv
 from monarch_money_tools.monarch_api import clean_cookie_header, csrf_from_cookie
@@ -9,7 +11,7 @@ from monarch_money_tools.normalizer import (
     normalize_categories,
     normalize_transactions,
 )
-from monarch_money_tools.review import build_review_plan
+from monarch_money_tools.review import apply_clear_review_plan, apply_review_plan, build_review_plan
 from monarch_money_tools.storage import write_json
 
 
@@ -49,6 +51,32 @@ def test_build_review_plan_recategorizes_unreviewed_transaction(
     assert update["suggestedCategory"] == "Dining"
     assert update["action"] == "recategorize_and_review"
     assert update["setNeedsReview"] is False
+
+
+def test_apply_review_plan_accepts_updates_directly(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    updates = [{"transactionId": "t1", "merchantName": "Coffee", "categoryId": "c1"}]
+    apply_patch = patch(
+        "monarch_money_tools.review.apply_transaction_updates", new_callable=AsyncMock
+    )
+    with apply_patch as mock_apply, patch("monarch_money_tools.review.write_json"):
+        mock_apply.return_value = [{"id": "t1"}]
+        result = asyncio.run(apply_review_plan(updates))
+    mock_apply.assert_called_once_with(updates)
+    assert result["requestedCount"] == 1
+
+
+def test_apply_clear_review_plan_accepts_updates_directly(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    updates = [{"transactionId": "t2", "merchantName": "Gas", "categoryId": ""}]
+    apply_patch = patch(
+        "monarch_money_tools.review.apply_transaction_updates", new_callable=AsyncMock
+    )
+    with apply_patch as mock_apply, patch("monarch_money_tools.review.write_json"):
+        mock_apply.return_value = [{"id": "t2"}]
+        result = asyncio.run(apply_clear_review_plan(updates))
+    mock_apply.assert_called_once_with(updates)
+    assert result["requestedCount"] == 1
 
 
 def test_cookie_helpers_extract_browser_session_bits() -> None:

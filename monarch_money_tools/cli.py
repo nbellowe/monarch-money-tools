@@ -552,7 +552,7 @@ def apply_clear_reviews_command(
         if not confirmed:
             raise typer.Abort()
 
-    result = run_async(apply_clear_review_plan(limit=limit))
+    result = run_async(apply_clear_review_plan(updates))
     console.print(f"[green]Cleared review flag on:[/] {result['requestedCount']} transactions")
 
 
@@ -604,7 +604,7 @@ def apply_reviews_command(
         if not confirmed:
             raise typer.Abort()
 
-    result = run_async(apply_review_plan(limit=limit))
+    result = run_async(apply_review_plan(updates))
     console.print(f"[green]Applied review updates:[/] {result['requestedCount']}")
 
 
@@ -830,7 +830,7 @@ def bulk_clear_reviews_command(
         if not confirmed:
             raise typer.Abort()
 
-    result = run_async(apply_clear_review_plan(limit=limit))
+    result = run_async(apply_clear_review_plan(updates))
     console.print(f"[green]Cleared review flag on:[/] {result['requestedCount']} transactions")
 
 

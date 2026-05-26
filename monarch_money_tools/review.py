@@ -8,7 +8,6 @@ from .storage import (
     JsonObject,
     load_bundle,
     now_iso,
-    read_json,
     reset_dir,
     round2,
     write_csv,
@@ -81,17 +80,7 @@ def build_clear_review_plan(categories: list[str] | None = None) -> JsonObject:
     return plan
 
 
-async def apply_clear_review_plan(limit: int | None = None) -> JsonObject:
-    plan_path = review_latest_dir() / "clear-review-plan.json"
-    if not plan_path.exists():
-        raise FileNotFoundError(
-            "No clear-review plan found. Run `monarch review clear-plan` first."
-        )
-
-    plan = read_json(plan_path)
-    updates = list(plan.get("updates") or [])
-    if limit is not None:
-        updates = updates[:limit]
+async def apply_clear_review_plan(updates: list[JsonObject]) -> JsonObject:
     results = await apply_transaction_updates(updates)
     applied = {
         "appliedAt": now_iso(),
@@ -226,15 +215,7 @@ def build_review_plan(
     return plan
 
 
-async def apply_review_plan(limit: int | None = None) -> JsonObject:
-    plan_path = review_latest_dir() / "review-plan.json"
-    if not plan_path.exists():
-        raise FileNotFoundError("No review plan found. Run `monarch review plan` first.")
-
-    plan = read_json(plan_path)
-    updates = list(plan.get("updates") or [])
-    if limit is not None:
-        updates = updates[:limit]
+async def apply_review_plan(updates: list[JsonObject]) -> JsonObject:
     results = await apply_transaction_updates(updates)
     applied = {
         "appliedAt": now_iso(),
@@ -313,5 +294,3 @@ def is_excluded_auto_review_category(category_name: str, category_group: str) ->
         category_group in EXCLUDED_AUTO_REVIEW_CATEGORY_GROUPS
         or category_name in EXCLUDED_AUTO_REVIEW_CATEGORY_NAMES
     )
-
-
