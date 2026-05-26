@@ -27,8 +27,8 @@ from collections import defaultdict
 import yaml
 
 from .env import get_config
-from .paths import canonical_taxonomy_file, normalized_latest_dir, review_latest_dir
-from .storage import JsonObject, now_iso, read_json, write_csv, write_json, write_text
+from .paths import canonical_taxonomy_file, review_latest_dir
+from .storage import JsonObject, load_bundle, now_iso, write_csv, write_json, write_text
 
 FOCUS_CATEGORIES = {"Uncategorized", "Misc Travel Expenses", "Paychecks"}
 EXCLUDE_SUGGESTIONS = {"Uncategorized"}
@@ -56,7 +56,7 @@ def build_llm_review_plan(
         focus_categories = FOCUS_CATEGORIES
 
     config = get_config()
-    bundle = read_json(normalized_latest_dir() / "bundle.json")
+    bundle = load_bundle()
 
     taxonomy_path = canonical_taxonomy_file()
     with open(taxonomy_path, encoding="utf-8") as f:

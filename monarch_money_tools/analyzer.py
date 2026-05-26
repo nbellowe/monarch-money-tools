@@ -3,18 +3,12 @@ from __future__ import annotations
 from typing import Any
 
 from .analysis import prepare_analysis
-from .paths import analysis_latest_dir, normalized_latest_dir
-from .storage import read_json, reset_dir, write_json
+from .paths import analysis_latest_dir
+from .storage import load_bundle, reset_dir, write_json
 
 
 def run_analyze() -> dict[str, Any]:
-    bundle_path = normalized_latest_dir() / "bundle.json"
-    if not bundle_path.exists():
-        raise FileNotFoundError(
-            "No normalized bundle found. Run `monarch pull` or `monarch import <csv>` first."
-        )
-
-    prepared = prepare_analysis(read_json(bundle_path))
+    prepared = prepare_analysis(load_bundle())
     rule_opportunities = prepared["heuristicRuleOpportunities"]
     analysis = {
         "generatedAt": prepared["generatedAt"],

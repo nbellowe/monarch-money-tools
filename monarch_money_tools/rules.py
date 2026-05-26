@@ -28,8 +28,17 @@ import re
 import uuid
 from collections import Counter, defaultdict
 
-from .paths import normalized_latest_dir, rules_latest_dir
-from .storage import JsonObject, now_iso, read_json, reset_dir, write_csv, write_json, write_text
+from .paths import rules_latest_dir
+from .storage import (
+    JsonObject,
+    load_bundle,
+    now_iso,
+    read_json,
+    reset_dir,
+    write_csv,
+    write_json,
+    write_text,
+)
 
 MIN_MERCHANT_TRANSACTIONS = 4
 MIN_CATEGORY_CONSISTENCY = 0.90
@@ -44,13 +53,7 @@ SKIP_CATEGORIES = {"Uncategorized"}
 
 
 def build_rule_suggestions() -> JsonObject:
-    bundle_path = normalized_latest_dir() / "bundle.json"
-    if not bundle_path.exists():
-        raise FileNotFoundError(
-            "No normalized bundle found. Run `monarch pull` or `monarch import` first."
-        )
-
-    bundle = read_json(bundle_path)
+    bundle = load_bundle()
     transactions: list[JsonObject] = [
         t for t in (bundle.get("transactions") or []) if not t.get("isPending")
     ]
@@ -325,14 +328,8 @@ def build_apply_plan(
             f"No rule suggestions found at {path}. Run `monarch rules suggest` first."
         )
 
-    bundle_path = normalized_latest_dir() / "bundle.json"
-    if not bundle_path.exists():
-        raise FileNotFoundError(
-            "No normalized bundle found. Run `monarch pull` or `monarch import` first."
-        )
-
     rule_set = read_json(path)
-    bundle = read_json(bundle_path)
+    bundle = load_bundle()
     transactions: list[JsonObject] = [
         t for t in (bundle.get("transactions") or []) if not t.get("isPending")
     ]

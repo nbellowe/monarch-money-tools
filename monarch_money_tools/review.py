@@ -3,9 +3,10 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 
 from .monarch_api import apply_transaction_updates
-from .paths import analysis_latest_dir, normalized_latest_dir, reports_latest_dir, review_latest_dir
+from .paths import analysis_latest_dir, reports_latest_dir, review_latest_dir
 from .storage import (
     JsonObject,
+    load_bundle,
     now_iso,
     read_json,
     reset_dir,
@@ -29,15 +30,9 @@ DEFAULT_CLEAR_REVIEW_CATEGORIES = [
 
 
 def build_clear_review_plan(categories: list[str] | None = None) -> JsonObject:
-    bundle_path = normalized_latest_dir() / "bundle.json"
-    if not bundle_path.exists():
-        raise FileNotFoundError(
-            "No normalized bundle found. Run `monarch pull` or `monarch import <csv>` first."
-        )
-
     trusted_categories = categories or DEFAULT_CLEAR_REVIEW_CATEGORIES
     trusted = {category.strip() for category in trusted_categories if category.strip()}
-    bundle = read_json(bundle_path)
+    bundle = load_bundle()
     transactions = list(bundle.get("transactions") or [])
 
     updates: list[JsonObject] = []
@@ -142,13 +137,7 @@ def build_review_plan(
     include_pending: bool = False,
     review_correct_categories: bool = True,
 ) -> JsonObject:
-    bundle_path = normalized_latest_dir() / "bundle.json"
-    if not bundle_path.exists():
-        raise FileNotFoundError(
-            "No normalized bundle found. Run `monarch pull` or `monarch import <csv>` first."
-        )
-
-    bundle = read_json(bundle_path)
+    bundle = load_bundle()
     transactions = list(bundle.get("transactions") or [])
     categories = list(bundle.get("categories") or [])
     category_id_by_name = {str(category["name"]): str(category["id"]) for category in categories}

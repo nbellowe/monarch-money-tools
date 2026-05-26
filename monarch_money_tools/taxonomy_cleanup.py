@@ -26,8 +26,17 @@ from typing import Any
 
 import yaml
 
-from .paths import canonical_taxonomy_file, cleanup_latest_dir, normalized_latest_dir
-from .storage import JsonObject, now_iso, read_json, reset_dir, write_csv, write_json, write_text
+from .paths import canonical_taxonomy_file, cleanup_latest_dir
+from .storage import (
+    JsonObject,
+    load_bundle,
+    now_iso,
+    read_json,
+    reset_dir,
+    write_csv,
+    write_json,
+    write_text,
+)
 
 MIGRATION_CONFIDENCE = 1.0
 MIN_PROFILE_TRANSACTIONS = 4
@@ -59,16 +68,10 @@ def build_taxonomy_cleanup_plan(taxonomy_path: Path | None = None) -> JsonObject
     if not taxonomy_path.exists():
         raise FileNotFoundError(f"Taxonomy not found: {taxonomy_path}")
 
-    bundle_path = normalized_latest_dir() / "bundle.json"
-    if not bundle_path.exists():
-        raise FileNotFoundError(
-            "No normalized bundle. Run `monarch pull` or `monarch import` first."
-        )
-
     with open(taxonomy_path, encoding="utf-8") as f:
         taxonomy: JsonObject = yaml.safe_load(f)
 
-    bundle = read_json(bundle_path)
+    bundle = load_bundle()
     transactions: list[JsonObject] = [
         t for t in (bundle.get("transactions") or []) if not t.get("isPending")
     ]
