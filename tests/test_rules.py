@@ -71,6 +71,7 @@ def test_build_apply_plan_filters_to_requested_rule(tmp_path: Path, monkeypatch)
 
     assert plan["summary"]["updateCount"] == 1
     assert plan["updates"][0]["transactionId"] == "food-1"
+    assert plan["updates"][0]["amount"] == -12
     assert plan["updates"][0]["ruleId"] == "food"
 
 

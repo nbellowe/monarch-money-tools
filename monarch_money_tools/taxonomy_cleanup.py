@@ -349,8 +349,8 @@ def _render_cleanup_plan(plan: JsonObject) -> str:
     def candidate_rows(items: list[JsonObject], limit: int = 100) -> str:
         return "\n".join(
             f"| {c['date']} | {c['merchantName']} | {c['currentCategory']} "
-            f"| {c['suggestedCategory']} | {c['source']} | {c['confidence']:.2f} | "
-            f"{c['reason'][:60]} |"
+            f"| {c['suggestedCategory']} | {c['amount']} | {c['source']} | "
+            f"{c['confidence']:.2f} | {c['reason'][:60]} |"
             for c in items[:limit]
         )
 
@@ -367,15 +367,15 @@ def _render_cleanup_plan(plan: JsonObject) -> str:
 {create_block}
 ## Ready to Apply ({s["readyCount"]})
 
-| Date | Merchant | Current | Suggested | Source | Confidence | Reason |
-| --- | --- | --- | --- | --- | --- | --- |
-{ready_rows or "| _None_ |  |  |  |  |  |  |"}
+| Date | Merchant | Current | Suggested | Amount | Source | Confidence | Reason |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+{ready_rows or "| _None_ |  |  |  |  |  |  |  |"}
 
 ## Blocked — Requires New Category ({s["blockedCount"]})
 
-| Date | Merchant | Current | Suggested | Source | Confidence | Reason |
-| --- | --- | --- | --- | --- | --- | --- |
-{blocked_rows or "| _None_ |  |  |  |  |  |  |"}
+| Date | Merchant | Current | Suggested | Amount | Source | Confidence | Reason |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+{blocked_rows or "| _None_ |  |  |  |  |  |  |  |"}
 """
 
 

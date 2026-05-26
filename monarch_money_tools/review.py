@@ -263,9 +263,14 @@ def write_review_plan(plan: JsonObject) -> None:
 def render_review_plan(plan: JsonObject) -> str:
     rows = "\n".join(
         f"| {item['date']} | {item['merchantName']} | {item['currentCategory']} | "
-        f"{item['suggestedCategory']} | {item['action']} | {item['confidence']:.2f} | "
-        f"{item['rationale']} |"
+        f"{item['suggestedCategory']} | {item['amount']} | {item['action']} | "
+        f"{item['confidence']:.2f} | {item['rationale']} |"
         for item in plan["updates"][:100]
+    )
+    table_header = (
+        "| Date | Merchant | Current Category | Suggested Category | Amount | "
+        "Action | Confidence | Rationale |\n"
+        "| --- | --- | --- | --- | --- | --- | --- | --- |"
     )
     return f"""# Review Plan
 
@@ -275,9 +280,8 @@ def render_review_plan(plan: JsonObject) -> str:
 - Deferred: {plan["summary"]["deferredCount"]}
 - Minimum confidence: {plan["summary"]["minConfidence"]}
 
-| Date | Merchant | Current Category | Suggested Category | Action | Confidence | Rationale |
-| --- | --- | --- | --- | --- | --- | --- |
-{rows or "| _No planned updates_ |  |  |  |  |  |  |"}
+{table_header}
+{rows or "| _No planned updates_ |  |  |  |  |  |  |  |"}
 """
 
 

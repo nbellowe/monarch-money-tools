@@ -48,17 +48,41 @@ data_app = typer.Typer(
 review_app = typer.Typer(help="Needs-Review planning and apply commands.", no_args_is_help=True)
 cleanup_app = typer.Typer(help="Taxonomy and merchant cleanup commands.", no_args_is_help=True)
 rules_app = typer.Typer(help="Rule suggestion and Monarch rule commands.", no_args_is_help=True)
-retirement_app = typer.Typer(
-    help="Retirement profile and simulator commands.",
-    no_args_is_help=True,
-)
 app.add_typer(data_app, name="data")
 app.add_typer(review_app, name="review")
 app.add_typer(cleanup_app, name="cleanup")
 app.add_typer(rules_app, name="rules")
-app.add_typer(retirement_app, name="retirement")
 console = Console()
 T = TypeVar("T")
+
+
+def _format_amount(value: Any) -> str:
+    try:
+        amount = float(value or 0)
+    except (TypeError, ValueError):
+        return str(value or "")
+    sign = "-" if amount < 0 else ""
+    return f"{sign}${abs(amount):,.2f}"
+
+
+def _print_review_updates_dry_run(updates: list[dict[str, Any]]) -> None:
+    table = Table(title=f"Dry run - {len(updates)} updates")
+    table.add_column("Merchant")
+    table.add_column("Amount", justify="right")
+    table.add_column("Current Category")
+    table.add_column("Suggested")
+    table.add_column("Confidence", justify="right")
+    for update in updates[:50]:
+        table.add_row(
+            update["merchantName"],
+            _format_amount(update.get("amount")),
+            update["currentCategory"],
+            update["suggestedCategory"],
+            f"{float(update.get('confidence', 0)):.0%}",
+        )
+    console.print(table)
+    if len(updates) > 50:
+        console.print(f"[dim]... and {len(updates) - 50} more[/]")
 
 
 @app.command("doctor")
@@ -303,7 +327,11 @@ def apply_cleanup_command(
     ] = True,
     dry_run: Annotated[
         bool,
-        typer.Option("--dry-run", help="Show what would be applied without calling the API."),
+        typer.Option(
+            "--dry-run",
+            help="Show what would be applied without calling the API.",
+            envvar="MONARCH_DRY_RUN",
+        ),
     ] = False,
 ) -> None:
     """Apply the latest taxonomy cleanup plan to Monarch."""
@@ -345,6 +373,7 @@ def apply_cleanup_command(
     if dry_run:
         table = Table(title=f"Dry run - {len(candidates)} updates", width=100)
         table.add_column("Merchant")
+        table.add_column("Amount", justify="right")
         table.add_column("Current Category")
         table.add_column("Suggested")
         table.add_column("Confidence", justify="right")
@@ -352,6 +381,7 @@ def apply_cleanup_command(
         for candidate in candidates[:50]:
             table.add_row(
                 candidate["merchantName"],
+                _format_amount(candidate.get("amount")),
                 candidate["currentCategory"],
                 candidate["suggestedCategory"],
                 f"{float(candidate.get('confidence', 0)):.0%}",
@@ -428,6 +458,9 @@ def plan_reviews_command(
         "[green]Review plan written:[/] data/review/latest/review-plan.json "
         f"({summary['plannedUpdateCount']} planned, {summary['deferredCount']} deferred)"
     )
+    updates = list(plan.get("updates") or [])
+    if updates:
+        _print_review_updates_dry_run(updates)
 
 
 @app.command("plan-clear-reviews")
@@ -465,7 +498,11 @@ def apply_clear_reviews_command(
     ] = None,
     dry_run: Annotated[
         bool,
-        typer.Option("--dry-run", help="Show what would be applied without calling the API."),
+        typer.Option(
+            "--dry-run",
+            help="Show what would be applied without calling the API.",
+            envvar="MONARCH_DRY_RUN",
+        ),
     ] = False,
 ) -> None:
     """Apply the latest reviewed clear-review plan to Monarch."""
@@ -489,11 +526,13 @@ def apply_clear_reviews_command(
     if dry_run:
         table = Table(title=f"Dry run - {len(updates)} clears")
         table.add_column("Merchant")
+        table.add_column("Amount", justify="right")
         table.add_column("Category")
         table.add_column("Account")
         for update in updates[:50]:
             table.add_row(
                 update["merchantName"],
+                _format_amount(update.get("amount")),
                 update["currentCategory"],
                 update.get("accountName", ""),
             )
@@ -525,7 +564,11 @@ def apply_reviews_command(
     ] = None,
     dry_run: Annotated[
         bool,
-        typer.Option("--dry-run", help="Show what would be applied without calling the API."),
+        typer.Option(
+            "--dry-run",
+            help="Show what would be applied without calling the API.",
+            envvar="MONARCH_DRY_RUN",
+        ),
     ] = False,
 ) -> None:
     """Apply the latest planned transaction updates to Monarch."""
@@ -547,21 +590,7 @@ def apply_reviews_command(
         raise typer.Exit(0)
 
     if dry_run:
-        table = Table(title=f"Dry run - {len(updates)} updates")
-        table.add_column("Merchant")
-        table.add_column("Current Category")
-        table.add_column("Suggested")
-        table.add_column("Confidence", justify="right")
-        for update in updates[:50]:
-            table.add_row(
-                update["merchantName"],
-                update["currentCategory"],
-                update["suggestedCategory"],
-                f"{float(update.get('confidence', 0)):.0%}",
-            )
-        console.print(table)
-        if len(updates) > 50:
-            console.print(f"[dim]... and {len(updates) - 50} more[/]")
+        _print_review_updates_dry_run(updates)
         return
 
     if not yes:
@@ -610,7 +639,11 @@ def llm_review_command(
     ] = True,
     dry_run: Annotated[
         bool,
-        typer.Option("--dry-run", help="Show scope without calling the LLM."),
+        typer.Option(
+            "--dry-run",
+            help="Show scope without calling the LLM.",
+            envvar="MONARCH_DRY_RUN",
+        ),
     ] = False,
 ) -> None:
     """Run an LLM-assisted categorization pass on ambiguous needs-review transactions."""
@@ -672,7 +705,11 @@ def apply_llm_review_command(
     ] = None,
     dry_run: Annotated[
         bool,
-        typer.Option("--dry-run", help="Show what would be applied without calling the API."),
+        typer.Option(
+            "--dry-run",
+            help="Show what would be applied without calling the API.",
+            envvar="MONARCH_DRY_RUN",
+        ),
     ] = False,
 ) -> None:
     """Apply the latest LLM review plan to Monarch."""
@@ -702,12 +739,14 @@ def apply_llm_review_command(
     if dry_run:
         table = Table(title=f"Dry run - {len(updates)} updates")
         table.add_column("Merchant")
+        table.add_column("Amount", justify="right")
         table.add_column("Current Category")
         table.add_column("Suggested")
         table.add_column("Confidence", justify="right")
         for update in updates[:50]:
             table.add_row(
                 update["merchantName"],
+                _format_amount(update.get("amount")),
                 update["currentCategory"],
                 update["suggestedCategory"],
                 f"{float(update.get('confidence', 0)):.0%}",
@@ -875,10 +914,14 @@ def apply_rules_command(
     ] = None,
     dry_run: Annotated[
         bool,
-        typer.Option("--dry-run", help="Show what would be applied without calling the API."),
+        typer.Option(
+            "--dry-run",
+            help="Show what would be applied without calling the API.",
+            envvar="MONARCH_DRY_RUN",
+        ),
     ] = False,
 ) -> None:
-    """Apply enabled rules from the latest rule suggestions to Monarch."""
+    """Apply rule suggestions to existing Monarch transactions."""
     from .rules import build_apply_plan
 
     plan = build_apply_plan(rules_path, rule)
@@ -896,6 +939,7 @@ def apply_rules_command(
     if dry_run:
         table = Table(title=f"Dry run — {len(updates)} updates")
         table.add_column("Merchant")
+        table.add_column("Amount", justify="right")
         table.add_column("Current Category")
         table.add_column("New Category")
         table.add_column("Clear Review")
@@ -903,6 +947,7 @@ def apply_rules_command(
         for u in updates[:50]:
             table.add_row(
                 u["merchantName"],
+                _format_amount(u.get("amount")),
                 u["currentCategory"],
                 u["suggestedCategory"] or "(unchanged)",
                 str(u["clearNeedsReview"]),
@@ -1202,9 +1247,6 @@ def _register_grouped_aliases() -> None:
     rules_app.command("push")(push_rule_command)
     rules_app.command("list")(list_monarch_rules_command)
     rules_app.command("delete")(delete_monarch_rule_command)
-
-    retirement_app.command("init")(init_profile_command)
-    retirement_app.command("run")(retire_command)
 
 
 _register_grouped_aliases()

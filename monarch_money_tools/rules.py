@@ -365,6 +365,7 @@ def build_apply_plan(
                 {
                     "transactionId": txn_id,
                     "merchantName": txn.get("merchantName") or "",
+                    "amount": txn.get("signedAmount") or 0,
                     "currentCategory": txn.get("categoryName") or "",
                     "suggestedCategory": set_category or "",
                     "categoryId": category_id or "",

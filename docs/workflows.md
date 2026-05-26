@@ -65,4 +65,3 @@ artifacts are local and gitignored.
 | `monarch review` | Plan and apply Needs-Review category changes |
 | `monarch cleanup` | Apply taxonomy migrations and merchant consistency cleanup |
 | `monarch rules` | Suggest local rules and push selected rules to Monarch |
-| `monarch retirement` | Create a profile and generate the simulator HTML |

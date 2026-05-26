@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from monarch_money_tools.init_wizard import _append_env, _read_env
+import pytest
+import typer
+
+from monarch_money_tools.init_wizard import _append_env, _read_env, run_init_wizard
 
 
 def test_read_env_parses_key_value_pairs(tmp_path: Path) -> None:
@@ -43,3 +46,35 @@ def test_append_env_no_op_when_all_keys_exist(tmp_path: Path) -> None:
     _append_env(env, {"MONARCH_EMAIL": "other@b.com"})
     content = env.read_text(encoding="utf-8")
     assert content.count("MONARCH_EMAIL") == 1
+
+
+def test_run_init_wizard_stops_after_password_connection_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+
+    def fake_credentials(yes: bool, env_path: Path) -> str:
+        calls.append("credentials")
+        return "password"
+
+    def fake_connection_test() -> bool:
+        calls.append("connection")
+        return False
+
+    def unexpected_step(*args: object, **kwargs: object) -> None:
+        raise AssertionError("init should stop before later steps")
+
+    monkeypatch.setattr("monarch_money_tools.init_wizard._step_credentials", fake_credentials)
+    monkeypatch.setattr(
+        "monarch_money_tools.init_wizard._step_connection_test",
+        fake_connection_test,
+    )
+    monkeypatch.setattr("monarch_money_tools.init_wizard._step_taxonomy_check", unexpected_step)
+    monkeypatch.setattr("monarch_money_tools.init_wizard._step_profile_bootstrap", unexpected_step)
+    monkeypatch.setattr("monarch_money_tools.init_wizard._step_doctor", unexpected_step)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        run_init_wizard()
+
+    assert exc_info.value.exit_code == 1
+    assert calls == ["credentials", "connection"]

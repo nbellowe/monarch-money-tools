@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from typer.testing import CliRunner
 
@@ -48,6 +49,18 @@ def test_cli_run_without_input_prints_actionable_error(tmp_path: Path, monkeypat
     assert "Traceback" not in result.output
 
 
+def test_cli_help_exposes_retire_without_retirement_group() -> None:
+    runner = CliRunner()
+
+    help_result = runner.invoke(app, ["--help"])
+    group_result = runner.invoke(app, ["retirement", "--help"])
+
+    assert help_result.exit_code == 0, help_result.output
+    assert "retire" in help_result.output
+    assert "Retirement profile and simulator commands" not in help_result.output
+    assert group_result.exit_code != 0
+
+
 def test_grouped_data_run_alias_works(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     source = Path.cwd() / "tests/fixtures/monarch_transactions.csv"
     monkeypatch.chdir(tmp_path)
@@ -88,4 +101,28 @@ def test_grouped_review_apply_alias_dry_run(tmp_path: Path, monkeypatch) -> None
     result = runner.invoke(app, ["review", "apply", "--dry-run"])
 
     assert result.exit_code == 0, result.output
+    assert "Acme Coffee" in result.output
+
+
+def test_grouped_review_plan_prints_apply_dry_run_table_with_amount(
+    tmp_path: Path,
+    normalized_bundle: dict[str, Any],
+) -> None:
+    target = next(
+        transaction
+        for transaction in normalized_bundle["transactions"]
+        if transaction["merchantName"] == "Acme Coffee"
+        and transaction["categoryName"] == "Shopping"
+    )
+    target["needsReview"] = True
+    write_json(tmp_path / "data/normalized/latest/bundle.json", normalized_bundle)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["review", "plan"])
+
+    assert result.exit_code == 0, result.output
+    assert "Review plan written" in result.output
+    assert "Dry run - 1 updates" in result.output
+    assert "Amount" in result.output
+    assert "-$5.95" in result.output
     assert "Acme Coffee" in result.output

@@ -339,7 +339,8 @@ def _render_plan(plan: JsonObject) -> str:
     def rows(items: list[JsonObject], limit: int = 300) -> str:
         return "\n".join(
             f"| {u['date']} | {u['merchantName'][:35]} | {u['currentCategory']} "
-            f"| {u['suggestedCategory']} | {u['confidence']:.2f} | {u['reason'][:60]} |"
+            f"| {u['suggestedCategory']} | {u['amount']} | {u['confidence']:.2f} | "
+            f"{u['reason'][:60]} |"
             for u in items[:limit]
         )
 
@@ -353,15 +354,15 @@ def _render_plan(plan: JsonObject) -> str:
 
 ## High Confidence ({s["highConfidenceCount"]})
 
-| Date | Merchant | Current | Suggested | Conf | Reason |
-| --- | --- | --- | --- | --- | --- |
-{rows(high) or "| _None_ | | | | | |"}
+| Date | Merchant | Current | Suggested | Amount | Conf | Reason |
+| --- | --- | --- | --- | --- | --- | --- |
+{rows(high) or "| _None_ | | | | | | |"}
 
 ## Low Confidence ({s["lowConfidenceCount"]})
 
-| Date | Merchant | Current | Suggested | Conf | Reason |
-| --- | --- | --- | --- | --- | --- |
-{rows(low) or "| _None_ | | | | | |"}
+| Date | Merchant | Current | Suggested | Amount | Conf | Reason |
+| --- | --- | --- | --- | --- | --- | --- |
+{rows(low) or "| _None_ | | | | | | |"}
 """
 
 

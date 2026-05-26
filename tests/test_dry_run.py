@@ -155,7 +155,9 @@ def test_apply_reviews_dry_run_prints_table_and_skips_api(
     assert result.exit_code == 0, result.output
     assert not api_called, "API should not be called during dry-run"
     assert "Acme Coffee" in result.output
+    assert "-$5.25" in result.output
     assert "Gas Station" in result.output
+    assert "-$45.00" in result.output
     assert "Dining" in result.output
 
 
@@ -176,6 +178,7 @@ def test_apply_clear_reviews_dry_run_prints_table_and_skips_api(
     assert result.exit_code == 0, result.output
     assert not api_called
     assert "Sushi Place" in result.output
+    assert "-$32.00" in result.output
     assert "Dining" in result.output
 
 
@@ -196,7 +199,9 @@ def test_apply_cleanup_dry_run_prints_table_and_skips_api(
     assert result.exit_code == 0, result.output
     assert not api_called
     assert "Mechanic Shop" in result.output
-    assert "Auto Maintenance & Fees" in result.output
+    assert "-$200.00" in result.output
+    assert "Auto Maintenance" in result.output
+    assert "Fees" in result.output
 
 
 def test_apply_llm_review_dry_run_prints_table_and_skips_api(
@@ -216,4 +221,25 @@ def test_apply_llm_review_dry_run_prints_table_and_skips_api(
     assert result.exit_code == 0, result.output
     assert not api_called
     assert "Amazon" in result.output
+    assert "-$34.99" in result.output
     assert "Mystery Store" not in result.output
+
+
+def test_monarch_dry_run_env_var_triggers_dry_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MONARCH_DRY_RUN=1 should activate dry-run without --dry-run flag."""
+    monkeypatch.chdir(tmp_path)
+    _write_review_plan(tmp_path)
+
+    api_called = []
+    monkeypatch.setattr(
+        "monarch_money_tools.cli.run_async",
+        lambda coro: api_called.append(coro) or {},
+    )
+
+    result = runner.invoke(app, ["apply-reviews"], env={"MONARCH_DRY_RUN": "1"})
+
+    assert result.exit_code == 0, result.output
+    assert not api_called, "API should not be called when MONARCH_DRY_RUN=1"
+    assert "Acme Coffee" in result.output

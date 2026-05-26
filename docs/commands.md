@@ -70,7 +70,7 @@ commands are easier to scan.
 
 | Command | Description |
 |---|---|
-| `monarch retirement init` / `monarch init-profile` | Write a starter `profile.yaml` to the current directory |
-| `monarch retirement run` / `monarch retire` | Generate a personalized retirement simulation HTML from `profile.yaml` |
+| `monarch init-profile` | Write a starter `profile.yaml` to the current directory |
+| `monarch retire` | Generate a personalized retirement simulation HTML from `profile.yaml` |
 
 See the [Retirement Simulator](retirement-simulator.md) guide for full details.

@@ -3,11 +3,14 @@ from __future__ import annotations
 import asyncio
 import os
 from pathlib import Path
+from typing import Literal
 
 import typer
 from rich.console import Console
 
 console = Console()
+
+AuthMethod = Literal["cookie", "session", "password", "skip", "unknown"]
 
 
 def _read_env(path: Path) -> dict[str, str]:
@@ -41,7 +44,24 @@ def _append_env(path: Path, new_keys: dict[str, str]) -> None:
     path.chmod(0o600)
 
 
-def _step_credentials(yes: bool, env_path: Path) -> None:
+def _auth_method_from_env(env: dict[str, str]) -> AuthMethod:
+    if os.environ.get("MONARCH_COOKIE") or env.get("MONARCH_COOKIE"):
+        return "cookie"
+    if (
+        os.environ.get("MONARCH_SESSION_TOKEN")
+        or env.get("MONARCH_SESSION_TOKEN")
+        or os.environ.get("MONARCH_SESSION_FILE")
+        or env.get("MONARCH_SESSION_FILE")
+    ):
+        return "session"
+    if (os.environ.get("MONARCH_EMAIL") or env.get("MONARCH_EMAIL")) and (
+        os.environ.get("MONARCH_PASSWORD") or env.get("MONARCH_PASSWORD")
+    ):
+        return "password"
+    return "unknown"
+
+
+def _step_credentials(yes: bool, env_path: Path) -> AuthMethod:
     env = _read_env(env_path)
     email = os.environ.get("MONARCH_EMAIL") or env.get("MONARCH_EMAIL")
     password = os.environ.get("MONARCH_PASSWORD") or env.get("MONARCH_PASSWORD")
@@ -52,14 +72,14 @@ def _step_credentials(yes: bool, env_path: Path) -> None:
     console.print("\n[bold]Step 1: Credentials[/]")
     if cookie or session_token or session_file or (email and password):
         console.print("[green]ok[/] Auth settings already exist.")
-        return
+        return _auth_method_from_env(env)
 
     if yes:
         console.print(
             "[yellow]--yes mode: skipping credential prompts. "
             "Set MONARCH_COOKIE, MONARCH_SESSION_TOKEN, or password credentials in .env.[/]"
         )
-        return
+        return "unknown"
 
     console.print(
         "[dim]Recommended: use browser cookie or saved-session auth. "
@@ -75,10 +95,12 @@ def _step_credentials(yes: bool, env_path: Path) -> None:
     )
     if method in {"skip", "s", ""}:
         console.print("[yellow]Skipped auth setup.[/]")
-        return
+        return "skip"
 
     new_keys: dict[str, str] = {}
+    auth_method: AuthMethod
     if method in {"cookie", "c"}:
+        auth_method = "cookie"
         cookie = typer.prompt("Full Monarch Cookie header", hide_input=True)
         if cookie:
             new_keys["MONARCH_COOKIE"] = cookie
@@ -89,10 +111,12 @@ def _step_credentials(yes: bool, env_path: Path) -> None:
                 if csrf:
                     new_keys["MONARCH_CSRF_TOKEN"] = csrf
     elif method in {"session", "token", "t"}:
+        auth_method = "session"
         token = typer.prompt("Monarch session token", hide_input=True)
         if token:
             new_keys["MONARCH_SESSION_TOKEN"] = token
     elif method in {"password", "p"}:
+        auth_method = "password"
         email = typer.prompt("Monarch Money email")
         password = typer.prompt("Monarch Money password", hide_input=True)
 
@@ -112,13 +136,14 @@ def _step_credentials(yes: bool, env_path: Path) -> None:
             new_keys["MONARCH_MFA_SECRET"] = mfa
     else:
         console.print("[yellow]Unknown auth method; skipped auth setup.[/]")
-        return
+        return "unknown"
 
     _append_env(env_path, new_keys)
     console.print("[green]ok[/] Auth settings written to .env")
+    return auth_method
 
 
-def _step_connection_test() -> None:
+def _step_connection_test() -> bool:
     console.print("\n[bold]Step 2: Connection test[/]")
     try:
         from .monarch_api import create_monarch_client
@@ -129,12 +154,14 @@ def _step_connection_test() -> None:
 
         asyncio.run(_test())
         console.print("[green]ok[/] Connected to Monarch successfully.")
+        return True
     except Exception as exc:
         console.print(f"[yellow]Connection test failed:[/] {exc}")
         console.print(
             "[dim]Check MONARCH_COOKIE, MONARCH_CSRF_TOKEN, MONARCH_SESSION_TOKEN, "
             "or password fallback settings in .env and try again.[/]"
         )
+        return False
 
 
 def _step_taxonomy_check(yes: bool) -> None:
@@ -230,8 +257,15 @@ def _step_doctor() -> None:
 
 def run_init_wizard(yes: bool = False) -> None:
     env_path = Path(".env")
-    _step_credentials(yes, env_path)
-    _step_connection_test()
+    auth_method = _step_credentials(yes, env_path)
+    connection_ok = _step_connection_test()
+    if not connection_ok and auth_method == "password":
+        console.print(
+            "[red]Stopping init because password authentication failed.[/] "
+            "Use cookie or saved-session auth, or retry after Monarch stops "
+            "rate limiting login attempts."
+        )
+        raise typer.Exit(1)
     _step_taxonomy_check(yes)
     _step_profile_bootstrap(yes)
     _step_doctor()
