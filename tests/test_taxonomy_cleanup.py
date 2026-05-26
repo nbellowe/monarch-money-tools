@@ -4,7 +4,10 @@ from pathlib import Path
 
 from monarch_money_tools.paths import canonical_taxonomy_file
 from monarch_money_tools.storage import write_json
-from monarch_money_tools.taxonomy_cleanup import build_taxonomy_cleanup_plan
+from monarch_money_tools.taxonomy_cleanup import (
+    build_taxonomy_cleanup_plan,
+    filter_cleanup_candidates,
+)
 
 
 def test_taxonomy_cleanup_builds_ready_migration_candidate(tmp_path: Path, monkeypatch) -> None:
@@ -65,3 +68,57 @@ def test_canonical_taxonomy_falls_back_to_packaged_file(tmp_path: Path, monkeypa
 
     assert path.exists()
     assert "monarch_money_tools" in str(path)
+
+
+def test_filter_cleanup_candidates_skips_blocked_by_default() -> None:
+    plan = {
+        "candidates": [
+            {"transactionId": "t1", "requiresNewCategory": False, "source": "taxonomy_migration"},
+            {"transactionId": "t2", "requiresNewCategory": True, "source": "taxonomy_migration"},
+        ]
+    }
+    result = filter_cleanup_candidates(
+        plan, decisions={}, skip_blocked=True, source=None, limit=None
+    )
+    assert len(result) == 1
+    assert result[0]["transactionId"] == "t1"
+
+
+def test_filter_cleanup_candidates_applies_decisions() -> None:
+    plan = {
+        "candidates": [
+            {"transactionId": "t1", "requiresNewCategory": False, "source": "taxonomy_migration"},
+            {"transactionId": "t2", "requiresNewCategory": False, "source": "taxonomy_migration"},
+        ]
+    }
+    decisions = {"t1": "accepted", "t2": "rejected"}
+    result = filter_cleanup_candidates(
+        plan, decisions=decisions, skip_blocked=False, source=None, limit=None
+    )
+    assert len(result) == 1
+    assert result[0]["transactionId"] == "t1"
+
+
+def test_filter_cleanup_candidates_filters_by_source() -> None:
+    plan = {
+        "candidates": [
+            {"transactionId": "t1", "requiresNewCategory": False, "source": "taxonomy_migration"},
+            {"transactionId": "t2", "requiresNewCategory": False, "source": "merchant_history"},
+        ]
+    }
+    result = filter_cleanup_candidates(
+        plan, decisions={}, skip_blocked=False, source="taxonomy_migration", limit=None
+    )
+    assert len(result) == 1
+    assert result[0]["transactionId"] == "t1"
+
+
+def test_filter_cleanup_candidates_respects_limit() -> None:
+    plan = {
+        "candidates": [
+            {"transactionId": f"t{i}", "requiresNewCategory": False, "source": "taxonomy_migration"}
+            for i in range(5)
+        ]
+    }
+    result = filter_cleanup_candidates(plan, decisions={}, skip_blocked=False, source=None, limit=2)
+    assert len(result) == 2

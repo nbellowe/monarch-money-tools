@@ -62,6 +62,25 @@ def save_decision(transaction_id: str, decision: str) -> None:
     write_json(cleanup_latest_dir() / "decisions.json", decisions)
 
 
+def filter_cleanup_candidates(
+    plan: JsonObject,
+    decisions: dict[str, str],
+    skip_blocked: bool,
+    source: str | None,
+    limit: int | None,
+) -> list[JsonObject]:
+    candidates = list(plan.get("candidates") or [])
+    if decisions:
+        candidates = [c for c in candidates if decisions.get(c["transactionId"]) == "accepted"]
+    if skip_blocked:
+        candidates = [c for c in candidates if not c.get("requiresNewCategory")]
+    if source:
+        candidates = [c for c in candidates if c.get("source") == source]
+    if limit is not None:
+        candidates = candidates[:limit]
+    return candidates
+
+
 def build_taxonomy_cleanup_plan(taxonomy_path: Path | None = None) -> JsonObject:
     if taxonomy_path is None:
         taxonomy_path = canonical_taxonomy_file()
@@ -377,5 +396,3 @@ def _render_cleanup_plan(plan: JsonObject) -> str:
 | --- | --- | --- | --- | --- | --- | --- | --- |
 {blocked_rows or "| _None_ |  |  |  |  |  |  |  |"}
 """
-
-
