@@ -31,7 +31,6 @@ spending:
   growth_real: 0.005
   healthcare_annual: 20000
   medicare_age: 65
-  flexible: true
   floor: 0.75
   ceiling: 1.20
 
@@ -60,9 +59,11 @@ market:
   inflation: 0.03
   equity_fraction_working: 0.85
   equity_fraction_retired: 0.60
-  use_historical_returns: false
 
 simulation:
+  method: monte_carlo
+  withdrawal_strategy: guardrails
+  withdrawal_rate: 0.04
   swr: 0.04
   years: 70
   mc_runs: 500
@@ -70,3 +71,11 @@ simulation:
     upper: 0.05
     lower: 0.03
     cut: 0.10
+  dynamic_spending:
+    floor: -0.025
+    ceiling: 0.05
+  guyton_klinger:
+    capital_preservation: 1.20
+    prosperity: 0.80
+    adjustment: 0.10
+    sunset_years: 15

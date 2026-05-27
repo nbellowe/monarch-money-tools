@@ -23,6 +23,9 @@ def test_profile_to_html_defaults_single_person():
     assert d["retireNathanAge"] == 55
     assert d["portfolioTotal"] == 600000
     assert d["nathanSalaryBase"] == 130000
+    assert d["person1Name"] == "Alex"
+    assert d["person2Name"] == ""
+    assert d["hasSpouse"] is False
     assert d["tanyaSalaryBase"] == 0
     assert d["tanyaRsuAnnual"] == 0
     assert d["ssTanyaAnnual"] == 0
@@ -47,6 +50,9 @@ def test_profile_to_html_defaults_couple():
         social_security={"spouse_annual": 18000},
     )
     d = profile_to_html_defaults(profile)
+    assert d["hasSpouse"] is True
+    assert d["person1Name"] == "Alex"
+    assert d["person2Name"] == "Jordan"
     assert d["tanyaAge"] == 37
     assert d["retireTanyaAge"] == 57
     assert d["tanyaSalaryBase"] == 95000
@@ -57,19 +63,38 @@ def test_profile_to_html_defaults_couple():
 def test_profile_to_html_defaults_maps_simulation_fields():
     profile = _profile(
         simulation={
+            "method": "historical_bootstrap",
+            "withdrawal_strategy": "vanguard_dynamic",
+            "withdrawal_rate": 0.045,
             "swr": 0.035,
             "years": 65,
             "mc_runs": 500,
             "guardrails": {"upper": 0.06, "lower": 0.025, "cut": 0.12},
+            "dynamic_spending": {"floor": -0.03, "ceiling": 0.06},
+            "guyton_klinger": {
+                "capital_preservation": 1.25,
+                "prosperity": 0.75,
+                "adjustment": 0.15,
+                "sunset_years": 12,
+            },
         },
     )
     d = profile_to_html_defaults(profile)
+    assert d["simulationMethod"] == "historical_bootstrap"
+    assert d["withdrawalStrategy"] == "vanguard_dynamic"
+    assert d["withdrawalRate"] == 0.045
     assert d["swr"] == 0.035
     assert d["years"] == 65
     assert d["mcRuns"] == 500
     assert d["upperGuardrail"] == 0.06
     assert d["lowerGuardrail"] == 0.025
     assert d["guardrailCut"] == 0.12
+    assert d["dynamicSpendingFloor"] == -0.03
+    assert d["dynamicSpendingCeiling"] == 0.06
+    assert d["gkCapitalPreservation"] == 1.25
+    assert d["gkProsperity"] == 0.75
+    assert d["gkAdjustment"] == 0.15
+    assert d["gkSunsetYears"] == 12
 
 
 def test_build_meta_single_person():
