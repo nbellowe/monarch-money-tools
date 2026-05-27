@@ -26,7 +26,8 @@ from typing import Any
 
 import yaml
 
-from .paths import canonical_taxonomy_file, cleanup_latest_dir
+from .monarch_api import apply_transaction_updates
+from .paths import canonical_taxonomy_file, cleanup_latest_dir, cleanup_revert_dir
 from .storage import (
     JsonObject,
     load_bundle,
@@ -396,3 +397,44 @@ def _render_cleanup_plan(plan: JsonObject) -> str:
 | --- | --- | --- | --- | --- | --- | --- | --- |
 {blocked_rows or "| _None_ |  |  |  |  |  |  |  |"}
 """
+
+
+async def apply_cleanup_plan(candidates: list[JsonObject]) -> JsonObject:
+    """Apply cleanup candidates to Monarch and write a revert receipt."""
+    from .revert import build_revert_receipt, snapshot_transaction_before, write_revert_receipt
+
+    bundle = load_bundle()
+    operations: list[JsonObject] = []
+    api_updates: list[JsonObject] = []
+
+    for c in candidates:
+        if not c.get("categoryId"):
+            continue
+        api_update: JsonObject = {
+            "transactionId": c["transactionId"],
+            "merchantName": c["merchantName"],
+            "suggestedCategory": c["suggestedCategory"],
+            "categoryId": c["categoryId"],
+            "setNeedsReview": c.get("setNeedsReview", False),
+        }
+        api_updates.append(api_update)
+        before = snapshot_transaction_before(c["transactionId"], bundle)
+        after: JsonObject = {
+            "categoryId": c["categoryId"],
+            "categoryName": c["suggestedCategory"],
+            "needsReview": c.get("setNeedsReview", False),
+        }
+        operations.append(
+            {
+                "type": "update_transaction",
+                "entityId": c["transactionId"],
+                "merchantName": c.get("merchantName", ""),
+                "before": before,
+                "after": after,
+            }
+        )
+
+    results = await apply_transaction_updates(api_updates)
+    receipt = build_revert_receipt("monarch cleanup apply", operations)
+    write_revert_receipt(cleanup_revert_dir(), receipt)
+    return {"appliedCount": len(results), "results": results}

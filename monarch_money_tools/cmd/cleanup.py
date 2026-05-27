@@ -4,11 +4,11 @@ from typing import Annotated
 
 import typer
 
-from ..monarch_api import apply_transaction_updates
 from ..paths import cleanup_latest_dir
 from ..review_cleanup import run_review_cleanup
 from ..storage import read_json
 from ..taxonomy_cleanup import (
+    apply_cleanup_plan,
     build_taxonomy_cleanup_plan,
     filter_cleanup_candidates,
     load_decisions,
@@ -153,16 +153,5 @@ def apply_cleanup_command(
         if not confirmed:
             raise typer.Abort()
 
-    updates = [
-        {
-            "transactionId": c["transactionId"],
-            "merchantName": c["merchantName"],
-            "suggestedCategory": c["suggestedCategory"],
-            "categoryId": c["categoryId"],
-            "setNeedsReview": c.get("setNeedsReview", False),
-        }
-        for c in candidates
-        if c.get("categoryId")
-    ]
-    result = run_async(apply_transaction_updates(updates))
-    console.print(f"[green]Applied cleanup updates:[/] {len(result)}")
+    result = run_async(apply_cleanup_plan(candidates))
+    console.print(f"[green]Applied cleanup updates:[/] {result['appliedCount']}")
