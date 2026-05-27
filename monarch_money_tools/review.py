@@ -81,13 +81,37 @@ def build_clear_review_plan(categories: list[str] | None = None) -> JsonObject:
 
 
 async def apply_clear_review_plan(updates: list[JsonObject]) -> JsonObject:
+    from .paths import review_revert_dir
+    from .revert import build_revert_receipt, snapshot_transaction_before, write_revert_receipt
+
+    bundle = load_bundle()
+    operations: list[JsonObject] = []
+    for update in updates:
+        before = snapshot_transaction_before(update["transactionId"], bundle)
+        after: JsonObject = {
+            "categoryId": update.get("categoryId"),
+            "categoryName": update.get("suggestedCategory"),
+            "needsReview": update.get("setNeedsReview"),
+        }
+        operations.append(
+            {
+                "type": "update_transaction",
+                "entityId": update["transactionId"],
+                "merchantName": update.get("merchantName", ""),
+                "before": before,
+                "after": after,
+            }
+        )
+
     results = await apply_transaction_updates(updates)
-    applied = {
+    applied: JsonObject = {
         "appliedAt": now_iso(),
         "requestedCount": len(updates),
         "results": results,
     }
     write_json(review_latest_dir() / "clear-review-apply-results.json", applied)
+    receipt = build_revert_receipt("monarch review clear-apply", operations)
+    write_revert_receipt(review_revert_dir(), receipt)
     return applied
 
 

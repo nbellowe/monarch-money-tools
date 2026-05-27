@@ -91,15 +91,33 @@ def test_apply_review_plan_accepts_updates_directly(tmp_path, monkeypatch) -> No
 
 def test_apply_clear_review_plan_accepts_updates_directly(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
-    updates = [{"transactionId": "t2", "merchantName": "Gas", "categoryId": ""}]
-    apply_patch = patch(
-        "monarch_money_tools.review.apply_transaction_updates", new_callable=AsyncMock
-    )
-    with apply_patch as mock_apply, patch("monarch_money_tools.review.write_json"):
+    mini_bundle = {
+        "transactions": [{"id": "t2", "categoryName": "Transfer", "needsReview": True}],
+        "categories": [{"id": "c2", "name": "Transfer"}],
+    }
+    updates = [
+        {
+            "transactionId": "t2",
+            "merchantName": "Gas",
+            "categoryId": "",
+            "suggestedCategory": "Transfer",
+            "setNeedsReview": False,
+        }
+    ]
+    with (
+        patch(
+            "monarch_money_tools.review.apply_transaction_updates", new_callable=AsyncMock
+        ) as mock_apply,
+        patch("monarch_money_tools.review.load_bundle", return_value=mini_bundle),
+        patch("monarch_money_tools.review.write_json"),
+    ):
         mock_apply.return_value = [{"id": "t2"}]
         result = asyncio.run(apply_clear_review_plan(updates))
+
     mock_apply.assert_called_once_with(updates)
     assert result["requestedCount"] == 1
+    receipts = list((tmp_path / "data" / "review" / "revert").glob("revert-*.json"))
+    assert len(receipts) == 1
 
 
 def test_cookie_helpers_extract_browser_session_bits() -> None:
