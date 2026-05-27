@@ -237,14 +237,19 @@ async def apply_review_plan(updates: list[JsonObject]) -> JsonObject:
 
 **Apply functions to modify:**
 
-| Function | Module | Receipt dir |
-|---|---|---|
-| `apply_review_plan` | `review.py` | `review_revert_dir()` |
-| `apply_clear_review_plan` | `review.py` | `review_revert_dir()` |
-| `apply_llm_review` (via `apply_transaction_updates`) | `llm_review.py` | `review_revert_dir()` |
-| `apply_cleanup_plan` | `taxonomy_cleanup.py` | `cleanup_revert_dir()` |
-| `apply_rules_plan` | `rules.py` | `rules_revert_dir()` |
-| `rules push` handler | `cmd/rules.py` | `rules_revert_dir()` (type: `create_rule`) |
+| Function | Module | Status | Receipt dir |
+|---|---|---|---|
+| `apply_review_plan` | `review.py` | exists | `review_revert_dir()` |
+| `apply_clear_review_plan` | `review.py` | exists | `review_revert_dir()` |
+| `apply_llm_review_plan` | `llm_review.py` | **extract from `cmd/review.py`** | `review_revert_dir()` |
+| `apply_cleanup_plan` | `taxonomy_cleanup.py` | **extract from `cmd/cleanup.py`** | `cleanup_revert_dir()` |
+| `apply_rules_plan` | `rules.py` | exists | `rules_revert_dir()` |
+| `rules push` handler | `cmd/rules.py` | inline (atomic) | `rules_revert_dir()` (type: `create_rule`) |
+
+**Extraction notes:**
+- `apply_llm_review_plan`: Currently the `llm-apply` command in `cmd/review.py` calls `apply_transaction_updates` inline. Extract into `llm_review.py` as `apply_llm_review_plan(updates) -> JsonObject` so receipt writing stays at the domain level.
+- `apply_cleanup_plan`: Currently the `cleanup apply` command in `cmd/cleanup.py` calls `apply_transaction_updates` inline. Extract into `taxonomy_cleanup.py` as `apply_cleanup_plan(candidates) -> JsonObject`.
+- `rules push`: Stays inline in `cmd/rules.py` since it is intentionally atomic with no plan file; the receipt is written directly in the command handler.
 
 Note: `apply_transaction_updates` in `monarch_api.py` is a low-level helper shared by multiple callers. Receipt writing happens at the domain-module level (one level up), not in this shared helper, so each command gets its own correctly-labeled receipt.
 
@@ -303,7 +308,7 @@ Current command naming against the plan→apply→revert pattern:
 - `review llm` → `review llm-plan` (keep `llm` as a deprecated alias for one release, print a deprecation warning)
 
 **Left as-is with rationale:**
-- `rules suggest` — "suggest" is domain-appropriate and there is no global `rules plan` concept; `rules apply` applies the suggestions file, which is close enough
+- `rules suggest` — "suggest" is domain-appropriate and there is no global `rules plan` concept; `rules apply` applies the suggestions file, which is close enough. `monarch rules revert` undoes the results of `rules apply` regardless of what the plan step is named.
 - `rules push` — intentionally atomic (no plan file makes sense for a single rule push); will emit a receipt so `rules revert` can undo it
 - `review bulk-clear` — intentionally combines steps for a common quick-clear workflow; emits a receipt via the shared `apply_clear_review_plan` call
 
