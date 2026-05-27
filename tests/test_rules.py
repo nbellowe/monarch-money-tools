@@ -88,7 +88,6 @@ def test_match_transactions_supports_pattern_and_needs_review_filter() -> None:
     assert matched[0]["needsReview"] is True
 
 
-
 def test_build_push_rule_payload_with_merchant_names() -> None:
     rule = {
         "match": {"merchantNames": ["Coffee Shop", "Cafe"], "needsReview": True},

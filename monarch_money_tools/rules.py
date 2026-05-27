@@ -418,9 +418,7 @@ async def apply_rules_plan(
     }
 
 
-def build_push_rule_payload(
-    rule: JsonObject, category_id: str | None
-) -> dict[str, object]:
+def build_push_rule_payload(rule: JsonObject, category_id: str | None) -> dict[str, object]:
     match_spec = rule.get("match") or {}
     action = rule.get("action") or {}
     merchant_names: list[str] = match_spec.get("merchantNames") or []

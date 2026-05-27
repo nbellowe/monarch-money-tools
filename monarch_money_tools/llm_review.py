@@ -360,5 +360,3 @@ def _render_plan(plan: JsonObject) -> str:
 | --- | --- | --- | --- | --- | --- | --- |
 {rows(low) or "| _None_ | | | | | | |"}
 """
-
-

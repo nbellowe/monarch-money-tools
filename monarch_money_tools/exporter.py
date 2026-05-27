@@ -93,5 +93,3 @@ def resolve_csv_path(configured_path: str | None) -> Path | None:
     if configured_path:
         return Path(configured_path).expanduser().resolve()
     return latest_csv_path([private_exports_dir(), exported_dir()])
-
-

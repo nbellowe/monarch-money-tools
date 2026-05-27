@@ -430,5 +430,3 @@ def _sign(value: float) -> int:
     if value < -0.01:
         return -1
     return 0
-
-
