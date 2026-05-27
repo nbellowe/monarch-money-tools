@@ -1,6 +1,7 @@
 data/
 reports/
 backups/
+docs/superpowers/
 .env
 /profile.yaml
 .monarch-home/

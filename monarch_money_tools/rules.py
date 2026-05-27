@@ -27,13 +27,20 @@ from __future__ import annotations
 import re
 import uuid
 from collections import Counter, defaultdict
-from datetime import UTC, datetime
-from typing import Any
 
-from .paths import normalized_latest_dir, rules_latest_dir
-from .storage import read_json, reset_dir, write_csv, write_json, write_text
-
-JsonObject = dict[str, Any]
+from .monarch_api import apply_transaction_updates, tag_transactions
+from .paths import rules_latest_dir, rules_revert_dir
+from .revert import build_revert_receipt, snapshot_transaction_before, write_revert_receipt
+from .storage import (
+    JsonObject,
+    load_bundle,
+    now_iso,
+    read_json,
+    reset_dir,
+    write_csv,
+    write_json,
+    write_text,
+)
 
 MIN_MERCHANT_TRANSACTIONS = 4
 MIN_CATEGORY_CONSISTENCY = 0.90
@@ -48,13 +55,7 @@ SKIP_CATEGORIES = {"Uncategorized"}
 
 
 def build_rule_suggestions() -> JsonObject:
-    bundle_path = normalized_latest_dir() / "bundle.json"
-    if not bundle_path.exists():
-        raise FileNotFoundError(
-            "No normalized bundle found. Run `monarch pull` or `monarch import` first."
-        )
-
-    bundle = read_json(bundle_path)
+    bundle = load_bundle()
     transactions: list[JsonObject] = [
         t for t in (bundle.get("transactions") or []) if not t.get("isPending")
     ]
@@ -68,7 +69,7 @@ def build_rule_suggestions() -> JsonObject:
     rules = _consolidate_rules(merchant_profiles, nr_profiles)
 
     reset_dir(rules_latest_dir())
-    generated_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    generated_at = now_iso()
 
     output: JsonObject = {
         "generatedAt": generated_at,
@@ -329,14 +330,8 @@ def build_apply_plan(
             f"No rule suggestions found at {path}. Run `monarch rules suggest` first."
         )
 
-    bundle_path = normalized_latest_dir() / "bundle.json"
-    if not bundle_path.exists():
-        raise FileNotFoundError(
-            "No normalized bundle found. Run `monarch pull` or `monarch import` first."
-        )
-
     rule_set = read_json(path)
-    bundle = read_json(bundle_path)
+    bundle = load_bundle()
     transactions: list[JsonObject] = [
         t for t in (bundle.get("transactions") or []) if not t.get("isPending")
     ]
@@ -377,7 +372,7 @@ def build_apply_plan(
             )
 
     return {
-        "generatedAt": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "generatedAt": now_iso(),
         "enabledRules": len(rules),
         "updates": updates,
         "summary": {"updateCount": len(updates)},
@@ -389,8 +384,6 @@ async def apply_rules_plan(
     limit: int | None = None,
     rules_filter: list[str] | None = None,
 ) -> JsonObject:
-    from .monarch_api import apply_transaction_updates, tag_transactions
-
     plan = build_apply_plan(rules_path, rules_filter)
     updates = plan["updates"]
 
@@ -409,6 +402,27 @@ async def apply_rules_plan(
         if u.get("categoryId") or u.get("clearNeedsReview")
     ]
 
+    bundle = load_bundle()
+    operations: list[JsonObject] = []
+    for u in updates:
+        if not (u.get("categoryId") or u.get("clearNeedsReview")):
+            continue
+        before = snapshot_transaction_before(u["transactionId"], bundle)
+        after: JsonObject = {
+            "categoryId": u.get("categoryId") or None,
+            "categoryName": u.get("suggestedCategory"),
+            "needsReview": False if u.get("clearNeedsReview") else None,
+        }
+        operations.append(
+            {
+                "type": "update_transaction",
+                "entityId": u["transactionId"],
+                "merchantName": u.get("merchantName", ""),
+                "before": before,
+                "after": after,
+            }
+        )
+
     tag_updates: dict[str, list[str]] = defaultdict(list)
     for u in updates:
         if u.get("addTag"):
@@ -418,11 +432,41 @@ async def apply_rules_plan(
     for tag_name, txn_ids in tag_updates.items():
         await tag_transactions(txn_ids, tag_name)
 
+    if operations:
+        receipt = build_revert_receipt("monarch rules apply", operations)
+        write_revert_receipt(rules_revert_dir(), receipt)
+
     return {
         "appliedCount": len(results),
         "taggedGroups": len(tag_updates),
         "updates": updates,
     }
+
+
+def build_push_rule_payload(rule: JsonObject, category_id: str | None) -> dict[str, object]:
+    match_spec = rule.get("match") or {}
+    action = rule.get("action") or {}
+    merchant_names: list[str] = match_spec.get("merchantNames") or []
+    merchant_pattern: str = match_spec.get("merchantPattern") or ""
+
+    payload: dict[str, object] = {"applyToExistingTransactions": False}
+
+    if category_id:
+        payload["setCategoryAction"] = category_id
+
+    if action.get("clearNeedsReview"):
+        payload["reviewStatusAction"] = "reviewed"
+
+    if merchant_names:
+        payload["merchantNameCriteria"] = [
+            {"operator": "eq", "value": name.lower()} for name in merchant_names
+        ]
+    elif merchant_pattern:
+        payload["merchantNameCriteria"] = [
+            {"operator": "contains", "value": merchant_pattern.lower()}
+        ]
+
+    return payload
 
 
 def _rule_matches_filter(rule: JsonObject, rules_filter: list[str]) -> bool:

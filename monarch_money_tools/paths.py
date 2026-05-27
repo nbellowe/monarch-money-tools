@@ -61,6 +61,18 @@ def rules_latest_dir() -> Path:
     return data_dir() / "rules" / "latest"
 
 
+def review_revert_dir() -> Path:
+    return data_dir() / "review" / "revert"
+
+
+def cleanup_revert_dir() -> Path:
+    return data_dir() / "cleanup" / "revert"
+
+
+def rules_revert_dir() -> Path:
+    return data_dir() / "rules" / "revert"
+
+
 def cashflow_latest_dir() -> Path:
     return data_dir() / "cashflow" / "latest"
 

@@ -21,16 +21,23 @@ Output: data/cleanup/latest/{cleanup-plan.json, cleanup-plan.csv,
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from .paths import canonical_taxonomy_file, cleanup_latest_dir, normalized_latest_dir
-from .storage import read_json, reset_dir, write_csv, write_json, write_text
-
-JsonObject = dict[str, Any]
+from .monarch_api import apply_transaction_updates
+from .paths import canonical_taxonomy_file, cleanup_latest_dir, cleanup_revert_dir
+from .storage import (
+    JsonObject,
+    load_bundle,
+    now_iso,
+    read_json,
+    reset_dir,
+    write_csv,
+    write_json,
+    write_text,
+)
 
 MIGRATION_CONFIDENCE = 1.0
 MIN_PROFILE_TRANSACTIONS = 4
@@ -56,22 +63,35 @@ def save_decision(transaction_id: str, decision: str) -> None:
     write_json(cleanup_latest_dir() / "decisions.json", decisions)
 
 
+def filter_cleanup_candidates(
+    plan: JsonObject,
+    decisions: dict[str, str],
+    skip_blocked: bool,
+    source: str | None,
+    limit: int | None,
+) -> list[JsonObject]:
+    candidates = list(plan.get("candidates") or [])
+    if decisions:
+        candidates = [c for c in candidates if decisions.get(c["transactionId"]) == "accepted"]
+    if skip_blocked:
+        candidates = [c for c in candidates if not c.get("requiresNewCategory")]
+    if source:
+        candidates = [c for c in candidates if c.get("source") == source]
+    if limit is not None:
+        candidates = candidates[:limit]
+    return candidates
+
+
 def build_taxonomy_cleanup_plan(taxonomy_path: Path | None = None) -> JsonObject:
     if taxonomy_path is None:
         taxonomy_path = canonical_taxonomy_file()
     if not taxonomy_path.exists():
         raise FileNotFoundError(f"Taxonomy not found: {taxonomy_path}")
 
-    bundle_path = normalized_latest_dir() / "bundle.json"
-    if not bundle_path.exists():
-        raise FileNotFoundError(
-            "No normalized bundle. Run `monarch pull` or `monarch import` first."
-        )
-
     with open(taxonomy_path, encoding="utf-8") as f:
         taxonomy: JsonObject = yaml.safe_load(f)
 
-    bundle = read_json(bundle_path)
+    bundle = load_bundle()
     transactions: list[JsonObject] = [
         t for t in (bundle.get("transactions") or []) if not t.get("isPending")
     ]
@@ -99,7 +119,7 @@ def build_taxonomy_cleanup_plan(taxonomy_path: Path | None = None) -> JsonObject
     categories_to_create = _identify_required_new_categories(taxonomy, category_id_by_name_group)
 
     plan: JsonObject = {
-        "generatedAt": _now_iso(),
+        "generatedAt": now_iso(),
         "summary": {
             "taxonomyMigrationCount": len(migration_candidates),
             "merchantConsistencyCount": len(consistency_candidates),
@@ -379,5 +399,42 @@ def _render_cleanup_plan(plan: JsonObject) -> str:
 """
 
 
-def _now_iso() -> str:
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+async def apply_cleanup_plan(candidates: list[JsonObject]) -> JsonObject:
+    """Apply cleanup candidates to Monarch and write a revert receipt."""
+    from .revert import build_revert_receipt, snapshot_transaction_before, write_revert_receipt
+
+    bundle = load_bundle()
+    operations: list[JsonObject] = []
+    api_updates: list[JsonObject] = []
+
+    for c in candidates:
+        if not c.get("categoryId"):
+            continue
+        api_update: JsonObject = {
+            "transactionId": c["transactionId"],
+            "merchantName": c["merchantName"],
+            "suggestedCategory": c["suggestedCategory"],
+            "categoryId": c["categoryId"],
+            "setNeedsReview": c.get("setNeedsReview", False),
+        }
+        api_updates.append(api_update)
+        before = snapshot_transaction_before(c["transactionId"], bundle)
+        after: JsonObject = {
+            "categoryId": c["categoryId"],
+            "categoryName": c["suggestedCategory"],
+            "needsReview": c.get("setNeedsReview", False),
+        }
+        operations.append(
+            {
+                "type": "update_transaction",
+                "entityId": c["transactionId"],
+                "merchantName": c.get("merchantName", ""),
+                "before": before,
+                "after": after,
+            }
+        )
+
+    results = await apply_transaction_updates(api_updates)
+    receipt = build_revert_receipt("monarch cleanup apply", operations)
+    write_revert_receipt(cleanup_revert_dir(), receipt)
+    return {"appliedCount": len(results), "results": results}

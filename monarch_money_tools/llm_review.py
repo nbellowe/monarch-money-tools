@@ -23,16 +23,13 @@ import json
 import subprocess
 import textwrap
 from collections import defaultdict
-from datetime import UTC, datetime
-from typing import Any
 
 import yaml
 
 from .env import get_config
-from .paths import canonical_taxonomy_file, normalized_latest_dir, review_latest_dir
-from .storage import read_json, write_csv, write_json, write_text
-
-JsonObject = dict[str, Any]
+from .monarch_api import apply_transaction_updates
+from .paths import canonical_taxonomy_file, review_latest_dir, review_revert_dir
+from .storage import JsonObject, load_bundle, now_iso, write_csv, write_json, write_text
 
 FOCUS_CATEGORIES = {"Uncategorized", "Misc Travel Expenses", "Paychecks"}
 EXCLUDE_SUGGESTIONS = {"Uncategorized"}
@@ -60,7 +57,7 @@ def build_llm_review_plan(
         focus_categories = FOCUS_CATEGORIES
 
     config = get_config()
-    bundle = read_json(normalized_latest_dir() / "bundle.json")
+    bundle = load_bundle()
 
     taxonomy_path = canonical_taxonomy_file()
     with open(taxonomy_path, encoding="utf-8") as f:
@@ -301,7 +298,7 @@ def _assemble_plan(
     high = [u for u in updates if u["confidence"] >= HIGH_CONFIDENCE_THRESHOLD]
     low = [u for u in updates if u["confidence"] < HIGH_CONFIDENCE_THRESHOLD]
     return {
-        "generatedAt": _now_iso(),
+        "generatedAt": now_iso(),
         "summary": {
             "focusCategories": sorted(focus_categories),
             "inputTransactionCount": len(transactions),
@@ -366,5 +363,42 @@ def _render_plan(plan: JsonObject) -> str:
 """
 
 
-def _now_iso() -> str:
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+async def apply_llm_review_plan(updates: list[JsonObject]) -> JsonObject:
+    """Apply LLM review plan updates to Monarch and write a revert receipt."""
+    from .revert import build_revert_receipt, snapshot_transaction_before, write_revert_receipt
+
+    bundle = load_bundle()
+    operations: list[JsonObject] = []
+    api_updates: list[JsonObject] = []
+
+    for u in updates:
+        if not u.get("categoryId"):
+            continue
+        api_update: JsonObject = {
+            "transactionId": u["transactionId"],
+            "merchantName": u["merchantName"],
+            "suggestedCategory": u["suggestedCategory"],
+            "categoryId": u["categoryId"],
+            "setNeedsReview": False,
+        }
+        api_updates.append(api_update)
+        before = snapshot_transaction_before(u["transactionId"], bundle)
+        after: JsonObject = {
+            "categoryId": u["categoryId"],
+            "categoryName": u["suggestedCategory"],
+            "needsReview": False,
+        }
+        operations.append(
+            {
+                "type": "update_transaction",
+                "entityId": u["transactionId"],
+                "merchantName": u.get("merchantName", ""),
+                "before": before,
+                "after": after,
+            }
+        )
+
+    results = await apply_transaction_updates(api_updates)
+    receipt = build_revert_receipt("monarch review llm-apply", operations)
+    write_revert_receipt(review_revert_dir(), receipt)
+    return {"appliedCount": len(results), "results": results}

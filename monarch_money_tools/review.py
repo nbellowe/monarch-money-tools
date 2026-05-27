@@ -1,14 +1,21 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from datetime import UTC, datetime
-from typing import Any
 
 from .monarch_api import apply_transaction_updates
-from .paths import analysis_latest_dir, normalized_latest_dir, reports_latest_dir, review_latest_dir
-from .storage import read_json, reset_dir, write_csv, write_json, write_text
+from .paths import analysis_latest_dir, reports_latest_dir, review_latest_dir, review_revert_dir
+from .revert import build_revert_receipt, snapshot_transaction_before, write_revert_receipt
+from .storage import (
+    JsonObject,
+    load_bundle,
+    now_iso,
+    reset_dir,
+    round2,
+    write_csv,
+    write_json,
+    write_text,
+)
 
-JsonObject = dict[str, Any]
 EXCLUDED_AUTO_REVIEW_CATEGORY_GROUPS = {"Transfers", "Income", "Investments"}
 EXCLUDED_AUTO_REVIEW_CATEGORY_NAMES = {"Uncategorized"}
 DEFAULT_CLEAR_REVIEW_CATEGORIES = [
@@ -23,15 +30,9 @@ DEFAULT_CLEAR_REVIEW_CATEGORIES = [
 
 
 def build_clear_review_plan(categories: list[str] | None = None) -> JsonObject:
-    bundle_path = normalized_latest_dir() / "bundle.json"
-    if not bundle_path.exists():
-        raise FileNotFoundError(
-            "No normalized bundle found. Run `monarch pull` or `monarch import <csv>` first."
-        )
-
     trusted_categories = categories or DEFAULT_CLEAR_REVIEW_CATEGORIES
     trusted = {category.strip() for category in trusted_categories if category.strip()}
-    bundle = read_json(bundle_path)
+    bundle = load_bundle()
     transactions = list(bundle.get("transactions") or [])
 
     updates: list[JsonObject] = []
@@ -80,24 +81,35 @@ def build_clear_review_plan(categories: list[str] | None = None) -> JsonObject:
     return plan
 
 
-async def apply_clear_review_plan(limit: int | None = None) -> JsonObject:
-    plan_path = review_latest_dir() / "clear-review-plan.json"
-    if not plan_path.exists():
-        raise FileNotFoundError(
-            "No clear-review plan found. Run `monarch review clear-plan` first."
+async def apply_clear_review_plan(updates: list[JsonObject]) -> JsonObject:
+    bundle = load_bundle()
+    operations: list[JsonObject] = []
+    for update in updates:
+        before = snapshot_transaction_before(update["transactionId"], bundle)
+        after: JsonObject = {
+            "categoryId": update.get("categoryId"),
+            "categoryName": update.get("suggestedCategory"),
+            "needsReview": update.get("setNeedsReview"),
+        }
+        operations.append(
+            {
+                "type": "update_transaction",
+                "entityId": update["transactionId"],
+                "merchantName": update.get("merchantName", ""),
+                "before": before,
+                "after": after,
+            }
         )
 
-    plan = read_json(plan_path)
-    updates = list(plan.get("updates") or [])
-    if limit is not None:
-        updates = updates[:limit]
     results = await apply_transaction_updates(updates)
-    applied = {
+    applied: JsonObject = {
         "appliedAt": now_iso(),
         "requestedCount": len(updates),
         "results": results,
     }
     write_json(review_latest_dir() / "clear-review-apply-results.json", applied)
+    receipt = build_revert_receipt("monarch review clear-apply", operations)
+    write_revert_receipt(review_revert_dir(), receipt)
     return applied
 
 
@@ -136,13 +148,7 @@ def build_review_plan(
     include_pending: bool = False,
     review_correct_categories: bool = True,
 ) -> JsonObject:
-    bundle_path = normalized_latest_dir() / "bundle.json"
-    if not bundle_path.exists():
-        raise FileNotFoundError(
-            "No normalized bundle found. Run `monarch pull` or `monarch import <csv>` first."
-        )
-
-    bundle = read_json(bundle_path)
+    bundle = load_bundle()
     transactions = list(bundle.get("transactions") or [])
     categories = list(bundle.get("categories") or [])
     category_id_by_name = {str(category["name"]): str(category["id"]) for category in categories}
@@ -231,22 +237,35 @@ def build_review_plan(
     return plan
 
 
-async def apply_review_plan(limit: int | None = None) -> JsonObject:
-    plan_path = review_latest_dir() / "review-plan.json"
-    if not plan_path.exists():
-        raise FileNotFoundError("No review plan found. Run `monarch review plan` first.")
+async def apply_review_plan(updates: list[JsonObject]) -> JsonObject:
+    bundle = load_bundle()
+    operations: list[JsonObject] = []
+    for update in updates:
+        before = snapshot_transaction_before(update["transactionId"], bundle)
+        after: JsonObject = {
+            "categoryId": update.get("categoryId"),
+            "categoryName": update.get("suggestedCategory"),
+            "needsReview": update.get("setNeedsReview"),
+        }
+        operations.append(
+            {
+                "type": "update_transaction",
+                "entityId": update["transactionId"],
+                "merchantName": update.get("merchantName", ""),
+                "before": before,
+                "after": after,
+            }
+        )
 
-    plan = read_json(plan_path)
-    updates = list(plan.get("updates") or [])
-    if limit is not None:
-        updates = updates[:limit]
     results = await apply_transaction_updates(updates)
-    applied = {
+    applied: JsonObject = {
         "appliedAt": now_iso(),
         "requestedCount": len(updates),
         "results": results,
     }
     write_json(review_latest_dir() / "apply-results.json", applied)
+    receipt = build_revert_receipt("monarch review apply", operations)
+    write_revert_receipt(review_revert_dir(), receipt)
     return applied
 
 
@@ -318,11 +337,3 @@ def is_excluded_auto_review_category(category_name: str, category_group: str) ->
         category_group in EXCLUDED_AUTO_REVIEW_CATEGORY_GROUPS
         or category_name in EXCLUDED_AUTO_REVIEW_CATEGORY_NAMES
     )
-
-
-def now_iso() -> str:
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
-
-
-def round2(value: float) -> float:
-    return round(value * 100) / 100

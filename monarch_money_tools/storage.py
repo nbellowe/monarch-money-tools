@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .paths import normalized_latest_dir
+
 JsonObject = dict[str, Any]
 
 
@@ -69,3 +71,20 @@ def latest_csv_path(candidates: list[Path]) -> Path | None:
         if directory.exists():
             files.extend(path for path in directory.iterdir() if path.suffix.lower() == ".csv")
     return sorted(files, key=lambda path: path.name, reverse=True)[0] if files else None
+
+
+def now_iso() -> str:
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+
+def round2(value: float) -> float:
+    return round(value * 100) / 100
+
+
+def load_bundle() -> Any:
+    path = normalized_latest_dir() / "bundle.json"
+    if not path.exists():
+        raise FileNotFoundError(
+            "No normalized bundle found. Run `monarch pull` or `monarch import <csv>` first."
+        )
+    return read_json(path)

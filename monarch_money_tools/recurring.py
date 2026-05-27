@@ -4,12 +4,10 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from statistics import median, pstdev
-from typing import Any, cast
+from typing import cast
 
 from .paths import normalized_latest_dir, reports_latest_dir
-from .storage import read_json, write_csv, write_text
-
-JsonObject = dict[str, Any]
+from .storage import JsonObject, now_iso, read_json, write_csv, write_text
 
 DEFAULT_MIN_OCCURRENCES = 2
 PRICE_DRIFT_THRESHOLD = 0.05
@@ -86,7 +84,7 @@ def analyze_recurring(
     )
     summary = _build_summary(patterns, as_of, min_occurrences, price_drift_threshold)
     return {
-        "generatedAt": _now_iso(),
+        "generatedAt": now_iso(),
         "summary": summary,
         "patterns": patterns,
     }
@@ -432,7 +430,3 @@ def _sign(value: float) -> int:
     if value < -0.01:
         return -1
     return 0
-
-
-def _now_iso() -> str:
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")

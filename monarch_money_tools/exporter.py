@@ -17,7 +17,15 @@ from .paths import (
     raw_history_dir,
     raw_latest_dir,
 )
-from .storage import iso_date, latest_csv_path, reset_dir, timestamp_slug, write_csv, write_json
+from .storage import (
+    iso_date,
+    latest_csv_path,
+    now_iso,
+    reset_dir,
+    timestamp_slug,
+    write_csv,
+    write_json,
+)
 
 
 def run_export(csv_path: Path | None = None) -> Path:
@@ -30,7 +38,7 @@ def run_export(csv_path: Path | None = None) -> Path:
         )
 
     imported = import_transactions_from_csv(resolved_csv)
-    exported_at = iso_datetime()
+    exported_at = now_iso()
     raw_bundle = {
         "exportedAt": exported_at,
         "dateRange": {"startDate": config.monarch_start_date, "endDate": iso_date()},
@@ -85,9 +93,3 @@ def resolve_csv_path(configured_path: str | None) -> Path | None:
     if configured_path:
         return Path(configured_path).expanduser().resolve()
     return latest_csv_path([private_exports_dir(), exported_dir()])
-
-
-def iso_datetime() -> str:
-    from datetime import UTC, datetime
-
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
