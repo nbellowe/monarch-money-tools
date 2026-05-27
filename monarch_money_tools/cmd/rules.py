@@ -6,6 +6,8 @@ import typer
 from rich.table import Table
 
 from ..monarch_api import delete_monarch_rule, fetch_transaction_rules
+from ..paths import rules_revert_dir
+from ..revert import build_revert_receipt, write_revert_receipt
 from ..rules import (
     build_apply_plan,
     build_push_rule_payload,
@@ -248,6 +250,15 @@ def push_rule_command(
     console.print(
         f"[green]Created Monarch rule:[/] {new_rule.get('id')} (order {new_rule.get('order')})"
     )
+    receipt_op: dict[str, object] = {
+        "type": "create_rule",
+        "entityId": str(new_rule.get("id", "")),
+        "ruleName": match["name"],
+        "before": None,
+        "after": {"monarchRuleId": str(new_rule.get("id", ""))},
+    }
+    receipt = build_revert_receipt("monarch rules push", [receipt_op])
+    write_revert_receipt(rules_revert_dir(), receipt)
 
 
 @rules_app.command("delete")

@@ -163,3 +163,41 @@ def test_apply_rules_plan_emits_receipt(tmp_path, monkeypatch) -> None:
     assert result["appliedCount"] == 1
     receipts = list((tmp_path / "data" / "rules" / "revert").glob("revert-*.json"))
     assert len(receipts) == 1
+
+
+from typer.testing import CliRunner
+
+from monarch_money_tools.cmd.rules import rules_app
+from monarch_money_tools.storage import read_json
+
+
+def test_push_rule_emits_create_rule_receipt(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "data" / "rules" / "latest").mkdir(parents=True)
+    write_json(
+        tmp_path / "data" / "rules" / "latest" / "rule-suggestions.json",
+        {
+            "rules": [
+                {
+                    "id": "rule-local-1",
+                    "name": "Chipotle → Dining",
+                    "enabled": True,
+                    "match": {"merchantNames": ["Chipotle"]},
+                    "action": {"setCategory": "Dining", "clearNeedsReview": True},
+                }
+            ]
+        },
+    )
+
+    fake_result = {"transactionRule": {"id": "monarch-rule-99", "order": 1}, "errors": None}
+
+    runner = CliRunner()
+    with patch("monarch_money_tools.cmd.rules.run_async", return_value=fake_result):
+        result = runner.invoke(rules_app, ["push", "rule-local-1", "--yes"])
+
+    assert result.exit_code == 0, result.output
+    receipts = list((tmp_path / "data" / "rules" / "revert").glob("revert-*.json"))
+    assert len(receipts) == 1
+    receipt = read_json(receipts[0])
+    assert receipt["operations"][0]["type"] == "create_rule"
+    assert receipt["operations"][0]["entityId"] == "monarch-rule-99"
