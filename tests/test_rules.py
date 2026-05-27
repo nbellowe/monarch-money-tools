@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from monarch_money_tools.rules import build_apply_plan, match_transactions
+from monarch_money_tools.rules import build_apply_plan, build_push_rule_payload, match_transactions
 from monarch_money_tools.storage import write_json
 
 
@@ -86,3 +86,38 @@ def test_match_transactions_supports_pattern_and_needs_review_filter() -> None:
 
     assert len(matched) == 1
     assert matched[0]["needsReview"] is True
+
+
+
+def test_build_push_rule_payload_with_merchant_names() -> None:
+    rule = {
+        "match": {"merchantNames": ["Coffee Shop", "Cafe"], "needsReview": True},
+        "action": {"setCategory": "Dining", "clearNeedsReview": True},
+    }
+    payload = build_push_rule_payload(rule, category_id="cat-123")
+    assert payload["setCategoryAction"] == "cat-123"
+    assert payload["reviewStatusAction"] == "reviewed"
+    assert len(payload["merchantNameCriteria"]) == 2
+    assert payload["merchantNameCriteria"][0]["operator"] == "eq"
+    assert payload["merchantNameCriteria"][0]["value"] == "coffee shop"
+
+
+def test_build_push_rule_payload_with_merchant_pattern() -> None:
+    rule = {
+        "match": {"merchantPattern": "AMZN", "needsReview": True},
+        "action": {"setCategory": "Shopping", "clearNeedsReview": False},
+    }
+    payload = build_push_rule_payload(rule, category_id="cat-shop")
+    assert payload["merchantNameCriteria"][0]["operator"] == "contains"
+    assert payload["merchantNameCriteria"][0]["value"] == "amzn"
+    assert "reviewStatusAction" not in payload
+
+
+def test_build_push_rule_payload_no_category() -> None:
+    rule = {
+        "match": {"merchantNames": ["Venmo"]},
+        "action": {"clearNeedsReview": True},
+    }
+    payload = build_push_rule_payload(rule, category_id=None)
+    assert "setCategoryAction" not in payload
+    assert payload["reviewStatusAction"] == "reviewed"

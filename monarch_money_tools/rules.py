@@ -418,6 +418,34 @@ async def apply_rules_plan(
     }
 
 
+def build_push_rule_payload(
+    rule: JsonObject, category_id: str | None
+) -> dict[str, object]:
+    match_spec = rule.get("match") or {}
+    action = rule.get("action") or {}
+    merchant_names: list[str] = match_spec.get("merchantNames") or []
+    merchant_pattern: str = match_spec.get("merchantPattern") or ""
+
+    payload: dict[str, object] = {"applyToExistingTransactions": False}
+
+    if category_id:
+        payload["setCategoryAction"] = category_id
+
+    if action.get("clearNeedsReview"):
+        payload["reviewStatusAction"] = "reviewed"
+
+    if merchant_names:
+        payload["merchantNameCriteria"] = [
+            {"operator": "eq", "value": name.lower()} for name in merchant_names
+        ]
+    elif merchant_pattern:
+        payload["merchantNameCriteria"] = [
+            {"operator": "contains", "value": merchant_pattern.lower()}
+        ]
+
+    return payload
+
+
 def _rule_matches_filter(rule: JsonObject, rules_filter: list[str]) -> bool:
     needles = {item.strip().lower() for item in rules_filter if item.strip()}
     if not needles:
