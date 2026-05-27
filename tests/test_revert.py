@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import json
+from unittest.mock import AsyncMock, patch
 
 from monarch_money_tools.paths import cleanup_revert_dir, review_revert_dir, rules_revert_dir
 from monarch_money_tools.revert import (
     build_revert_receipt,
+    execute_revert,
     find_latest_receipt,
     snapshot_transaction_before,
     write_revert_receipt,
@@ -93,12 +96,6 @@ def test_find_latest_receipt_returns_none_for_missing_dir(tmp_path) -> None:
     assert find_latest_receipt(tmp_path / "nonexistent") is None
 
 
-import asyncio
-from unittest.mock import AsyncMock, patch
-
-from monarch_money_tools.revert import execute_revert
-
-
 def test_execute_revert_update_transaction(tmp_path) -> None:
     receipt = build_revert_receipt(
         "monarch review apply",
@@ -107,8 +104,16 @@ def test_execute_revert_update_transaction(tmp_path) -> None:
                 "type": "update_transaction",
                 "entityId": "txn-1",
                 "merchantName": "Starbucks",
-                "before": {"categoryId": "cat-0", "categoryName": "Uncategorized", "needsReview": True},
-                "after": {"categoryId": "cat-1", "categoryName": "Coffee Shops", "needsReview": False},
+                "before": {
+                    "categoryId": "cat-0",
+                    "categoryName": "Uncategorized",
+                    "needsReview": True,
+                },
+                "after": {
+                    "categoryId": "cat-1",
+                    "categoryName": "Coffee Shops",
+                    "needsReview": False,
+                },
             }
         ],
     )
