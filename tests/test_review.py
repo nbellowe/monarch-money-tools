@@ -125,3 +125,42 @@ def test_cookie_helpers_extract_browser_session_bits() -> None:
 
     assert clean_cookie_header(cookie) == "session_id=abc; csrftoken=token%20123; cf_clearance=xyz"
     assert csrf_from_cookie(cookie) == "token 123"
+
+
+from typer.testing import CliRunner
+
+from monarch_money_tools.cmd.review import review_app
+
+
+def test_review_revert_no_receipt_exits_cleanly(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(review_app, ["revert"])
+    assert result.exit_code == 1
+    assert "No revert receipt found" in result.output
+
+
+def test_review_revert_dry_run_shows_table(tmp_path, monkeypatch) -> None:
+    from monarch_money_tools.paths import review_revert_dir
+    from monarch_money_tools.revert import build_revert_receipt, write_revert_receipt
+
+    monkeypatch.chdir(tmp_path)
+    receipt = build_revert_receipt(
+        "monarch review apply",
+        [
+            {
+                "type": "update_transaction",
+                "entityId": "txn-1",
+                "merchantName": "Starbucks",
+                "before": {"categoryId": "cat-0", "categoryName": "Uncategorized", "needsReview": True},
+                "after": {"categoryId": "cat-1", "categoryName": "Coffee Shops", "needsReview": False},
+            }
+        ],
+    )
+    write_revert_receipt(review_revert_dir(), receipt)
+
+    runner = CliRunner()
+    result = runner.invoke(review_app, ["revert", "--dry-run"])
+    assert result.exit_code == 0
+    assert "Starbucks" in result.output
+    assert "Uncategorized" in result.output

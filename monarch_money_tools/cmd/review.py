@@ -4,7 +4,8 @@ from typing import Annotated
 
 import typer
 
-from ..paths import review_latest_dir
+from ..paths import review_latest_dir, review_revert_dir
+from ..revert import execute_revert, find_latest_receipt
 from ..review import (
     DEFAULT_CLEAR_REVIEW_CATEGORIES,
     apply_clear_review_plan,
@@ -430,3 +431,75 @@ def bulk_clear_reviews_command(
 
     result = run_async(apply_clear_review_plan(updates))
     console.print(f"[green]Cleared review flag on:[/] {result['requestedCount']} transactions")
+
+
+_REVERT_COLUMNS = [
+    ("Merchant", None),
+    ("Current Category", None),
+    ("Restoring Category", None),
+    ("Review", None),
+]
+
+
+@review_app.command("revert")
+def revert_reviews_command(
+    receipt: Annotated[
+        str | None,
+        typer.Option("--receipt", help="Path to a specific revert receipt file."),
+    ] = None,
+    yes: Annotated[
+        bool, typer.Option("--yes", help="Revert without an interactive prompt.")
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Show what would be reverted without calling the API.",
+            envvar="MONARCH_DRY_RUN",
+        ),
+    ] = False,
+) -> None:
+    """Revert the latest review apply using its revert receipt."""
+    from pathlib import Path
+
+    receipt_path = Path(receipt) if receipt else find_latest_receipt(review_revert_dir())
+    if not receipt_path:
+        console.print("[red]No revert receipt found.[/] Run `monarch review apply` first.")
+        raise typer.Exit(1)
+
+    receipt_data = read_json(receipt_path)
+    ops = [
+        op
+        for op in (receipt_data.get("operations") or [])
+        if op.get("type") == "update_transaction"
+    ]
+
+    if not ops:
+        console.print("[yellow]No revertable operations in this receipt.[/]")
+        raise typer.Exit(0)
+
+    console.print(f"Using receipt: [dim]{receipt_path}[/] ({len(ops)} operations)")
+    print_dry_run_table(
+        f"{'Dry run - ' if dry_run else ''}Revert {len(ops)} operations",
+        ops,
+        _REVERT_COLUMNS,
+        lambda op: (
+            op.get("merchantName", ""),
+            (op.get("after") or {}).get("categoryName", ""),
+            (op.get("before") or {}).get("categoryName", ""),
+            str((op.get("before") or {}).get("needsReview", "")),
+        ),
+    )
+
+    if dry_run:
+        return
+
+    if not yes:
+        confirmed = typer.confirm(f"Revert {len(ops)} operations in Monarch? Continue?")
+        if not confirmed:
+            raise typer.Abort()
+
+    result = run_async(execute_revert(receipt_path))
+    console.print(f"[green]Reverted:[/] {result['revertedCount']} operations")
+    if result.get("skippedCount"):
+        console.print(f"[yellow]Skipped:[/] {result['skippedCount']} operations (unknown type)")
