@@ -28,7 +28,8 @@ import re
 import uuid
 from collections import Counter, defaultdict
 
-from .paths import rules_latest_dir
+from .monarch_api import apply_transaction_updates, tag_transactions
+from .paths import rules_latest_dir, rules_revert_dir
 from .storage import (
     JsonObject,
     load_bundle,
@@ -382,7 +383,7 @@ async def apply_rules_plan(
     limit: int | None = None,
     rules_filter: list[str] | None = None,
 ) -> JsonObject:
-    from .monarch_api import apply_transaction_updates, tag_transactions
+    from .revert import build_revert_receipt, snapshot_transaction_before, write_revert_receipt
 
     plan = build_apply_plan(rules_path, rules_filter)
     updates = plan["updates"]
@@ -402,6 +403,27 @@ async def apply_rules_plan(
         if u.get("categoryId") or u.get("clearNeedsReview")
     ]
 
+    bundle = load_bundle()
+    operations: list[JsonObject] = []
+    for u in updates:
+        if not (u.get("categoryId") or u.get("clearNeedsReview")):
+            continue
+        before = snapshot_transaction_before(u["transactionId"], bundle)
+        after: JsonObject = {
+            "categoryId": u.get("categoryId") or None,
+            "categoryName": u.get("suggestedCategory"),
+            "needsReview": False if u.get("clearNeedsReview") else None,
+        }
+        operations.append(
+            {
+                "type": "update_transaction",
+                "entityId": u["transactionId"],
+                "merchantName": u.get("merchantName", ""),
+                "before": before,
+                "after": after,
+            }
+        )
+
     tag_updates: dict[str, list[str]] = defaultdict(list)
     for u in updates:
         if u.get("addTag"):
@@ -410,6 +432,10 @@ async def apply_rules_plan(
     results = await apply_transaction_updates(api_updates) if api_updates else []
     for tag_name, txn_ids in tag_updates.items():
         await tag_transactions(txn_ids, tag_name)
+
+    if operations:
+        receipt = build_revert_receipt("monarch rules apply", operations)
+        write_revert_receipt(rules_revert_dir(), receipt)
 
     return {
         "appliedCount": len(results),

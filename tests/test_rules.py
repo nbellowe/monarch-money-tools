@@ -120,3 +120,46 @@ def test_build_push_rule_payload_no_category() -> None:
     payload = build_push_rule_payload(rule, category_id=None)
     assert "setCategoryAction" not in payload
     assert payload["reviewStatusAction"] == "reviewed"
+
+
+import asyncio
+from unittest.mock import AsyncMock, patch
+
+
+def test_apply_rules_plan_emits_receipt(tmp_path, monkeypatch) -> None:
+    from monarch_money_tools.rules import apply_rules_plan
+
+    monkeypatch.chdir(tmp_path)
+    mini_bundle = {
+        "transactions": [{"id": "t5", "categoryName": "Uncategorized", "needsReview": True}],
+        "categories": [
+            {"id": "c0", "name": "Uncategorized"},
+            {"id": "c6", "name": "Dining"},
+        ],
+    }
+    canned_plan = {
+        "updates": [
+            {
+                "transactionId": "t5",
+                "merchantName": "Chipotle",
+                "suggestedCategory": "Dining",
+                "categoryId": "c6",
+                "clearNeedsReview": True,
+                "ruleName": "Chipotle rule",
+                "addTag": None,
+            }
+        ]
+    }
+    with (
+        patch("monarch_money_tools.rules.build_apply_plan", return_value=canned_plan),
+        patch(
+            "monarch_money_tools.rules.apply_transaction_updates", new_callable=AsyncMock
+        ) as mock_apply,
+        patch("monarch_money_tools.rules.load_bundle", return_value=mini_bundle),
+    ):
+        mock_apply.return_value = [{"id": "t5"}]
+        result = asyncio.run(apply_rules_plan())
+
+    assert result["appliedCount"] == 1
+    receipts = list((tmp_path / "data" / "rules" / "revert").glob("revert-*.json"))
+    assert len(receipts) == 1
