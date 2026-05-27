@@ -189,8 +189,15 @@ def test_push_rule_emits_create_rule_receipt(tmp_path, monkeypatch) -> None:
 
     fake_result = {"transactionRule": {"id": "monarch-rule-99", "order": 1}, "errors": None}
 
+    def _mock_run_async(coro: object) -> object:
+        # Close the coroutine to prevent "never awaited" RuntimeWarning before returning
+        # the fake result (run_async is synchronous from the caller's perspective).
+        if hasattr(coro, "close"):
+            coro.close()
+        return fake_result
+
     runner = CliRunner()
-    with patch("monarch_money_tools.cmd.rules.run_async", return_value=fake_result):
+    with patch("monarch_money_tools.cmd.rules.run_async", side_effect=_mock_run_async):
         result = runner.invoke(rules_app, ["push", "rule-local-1", "--yes"])
 
     assert result.exit_code == 0, result.output

@@ -30,6 +30,7 @@ from collections import Counter, defaultdict
 
 from .monarch_api import apply_transaction_updates, tag_transactions
 from .paths import rules_latest_dir, rules_revert_dir
+from .revert import build_revert_receipt, snapshot_transaction_before, write_revert_receipt
 from .storage import (
     JsonObject,
     load_bundle,
@@ -383,8 +384,6 @@ async def apply_rules_plan(
     limit: int | None = None,
     rules_filter: list[str] | None = None,
 ) -> JsonObject:
-    from .revert import build_revert_receipt, snapshot_transaction_before, write_revert_receipt
-
     plan = build_apply_plan(rules_path, rules_filter)
     updates = plan["updates"]
 

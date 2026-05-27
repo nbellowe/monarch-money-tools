@@ -187,7 +187,7 @@ def test_apply_reviews_dry_run_prints_table_and_skips_api(
 
     api_called = []
     monkeypatch.setattr(
-        "monarch_money_tools.cli.run_async",
+        "monarch_money_tools.cmd.review.run_async",
         lambda coro: api_called.append(coro) or {},
     )
 
@@ -210,7 +210,7 @@ def test_bulk_clear_reviews_monarch_dry_run_skips_api(
 
     api_called = []
     monkeypatch.setattr(
-        "monarch_money_tools.cli.run_async",
+        "monarch_money_tools.cmd.review.run_async",
         lambda coro: api_called.append(coro) or {},
     )
 
@@ -230,7 +230,7 @@ def test_push_rule_monarch_dry_run_skips_api(
 
     api_called = []
     monkeypatch.setattr(
-        "monarch_money_tools.cli.run_async",
+        "monarch_money_tools.cmd.rules.run_async",
         lambda coro: api_called.append(coro) or {},
     )
 
@@ -245,7 +245,7 @@ def test_push_rule_monarch_dry_run_skips_api(
 def test_delete_rule_monarch_dry_run_skips_api(monkeypatch: pytest.MonkeyPatch) -> None:
     api_called = []
     monkeypatch.setattr(
-        "monarch_money_tools.cli.run_async",
+        "monarch_money_tools.cmd.rules.run_async",
         lambda coro: api_called.append(coro) or {},
     )
 
@@ -264,7 +264,7 @@ def test_apply_clear_reviews_dry_run_prints_table_and_skips_api(
 
     api_called = []
     monkeypatch.setattr(
-        "monarch_money_tools.cli.run_async",
+        "monarch_money_tools.cmd.review.run_async",
         lambda coro: api_called.append(coro) or {},
     )
 
@@ -285,7 +285,7 @@ def test_apply_cleanup_dry_run_prints_table_and_skips_api(
 
     api_called = []
     monkeypatch.setattr(
-        "monarch_money_tools.cli.run_async",
+        "monarch_money_tools.cmd.cleanup.run_async",
         lambda coro: api_called.append(coro) or {},
     )
 
@@ -307,7 +307,7 @@ def test_apply_llm_review_dry_run_prints_table_and_skips_api(
 
     api_called = []
     monkeypatch.setattr(
-        "monarch_money_tools.cli.run_async",
+        "monarch_money_tools.cmd.review.run_async",
         lambda coro: api_called.append(coro) or {},
     )
 
@@ -329,7 +329,7 @@ def test_monarch_dry_run_env_var_triggers_dry_run(
 
     api_called = []
     monkeypatch.setattr(
-        "monarch_money_tools.cli.run_async",
+        "monarch_money_tools.cmd.review.run_async",
         lambda coro: api_called.append(coro) or {},
     )
 

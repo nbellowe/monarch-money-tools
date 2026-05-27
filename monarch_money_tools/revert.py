@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+
+from rich.console import Console
 
 from .monarch_api import apply_transaction_updates, delete_monarch_rule
-from .storage import ensure_dir, now_iso, read_json, timestamp_slug, write_json
+from .storage import JsonObject, ensure_dir, now_iso, read_json, timestamp_slug, write_json
 
-JsonObject = dict[str, Any]
+console = Console()
 
 
 def snapshot_transaction_before(txn_id: str, bundle: JsonObject) -> JsonObject:
@@ -120,7 +121,5 @@ async def _invert_operation(op: JsonObject) -> bool:
             await delete_monarch_rule(str(op["entityId"]))
             return True
         case _:
-            from rich.console import Console
-
-            Console().print(f"[yellow]Unknown operation type '{op_type}', skipping.[/]")
+            console.print(f"[yellow]Unknown operation type '{op_type}', skipping.[/]")
             return False

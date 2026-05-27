@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 
 from .monarch_api import apply_transaction_updates
-from .paths import analysis_latest_dir, reports_latest_dir, review_latest_dir
+from .paths import analysis_latest_dir, reports_latest_dir, review_latest_dir, review_revert_dir
+from .revert import build_revert_receipt, snapshot_transaction_before, write_revert_receipt
 from .storage import (
     JsonObject,
     load_bundle,
@@ -81,9 +82,6 @@ def build_clear_review_plan(categories: list[str] | None = None) -> JsonObject:
 
 
 async def apply_clear_review_plan(updates: list[JsonObject]) -> JsonObject:
-    from .paths import review_revert_dir
-    from .revert import build_revert_receipt, snapshot_transaction_before, write_revert_receipt
-
     bundle = load_bundle()
     operations: list[JsonObject] = []
     for update in updates:
@@ -240,9 +238,6 @@ def build_review_plan(
 
 
 async def apply_review_plan(updates: list[JsonObject]) -> JsonObject:
-    from .paths import review_revert_dir
-    from .revert import build_revert_receipt, snapshot_transaction_before, write_revert_receipt
-
     bundle = load_bundle()
     operations: list[JsonObject] = []
     for update in updates:
