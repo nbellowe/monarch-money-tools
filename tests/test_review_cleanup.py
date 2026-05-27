@@ -82,10 +82,10 @@ def test_apply_cleanup_respects_decision_log(
         return updates
 
     monkeypatch.setattr(
-        "monarch_money_tools.cli.apply_transaction_updates",
+        "monarch_money_tools.cmd.cleanup.apply_transaction_updates",
         fake_apply_transaction_updates,
     )
-    monkeypatch.setattr("monarch_money_tools.cli.run_async", lambda value: value)
+    monkeypatch.setattr("monarch_money_tools.cmd.cleanup.run_async", lambda value: value)
 
     runner = CliRunner()
     result = runner.invoke(app, ["apply-cleanup", "--yes"])

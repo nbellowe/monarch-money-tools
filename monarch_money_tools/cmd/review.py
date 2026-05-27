@@ -395,6 +395,14 @@ def bulk_clear_reviews_command(
         int | None,
         typer.Option("--limit", min=1, help="Apply at most this many clears."),
     ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Show what would be applied without calling the API.",
+            envvar="MONARCH_DRY_RUN",
+        ),
+    ] = False,
 ) -> None:
     """Build and optionally apply a clear-review plan for trusted categories."""
     trust_categories = {c.strip() for c in categories.split(",") if c.strip()}
@@ -402,14 +410,29 @@ def bulk_clear_reviews_command(
     updates = list(plan.get("updates") or [])
     if limit is not None:
         updates = updates[:limit]
+    planned_count = int(plan["summary"]["plannedUpdateCount"])
     if not updates:
         console.print("[yellow]No transactions to clear.[/]")
         raise typer.Exit(0)
 
     console.print(
-        f"Clear-review plan written with [bold]{len(updates)}[/] transactions "
+        f"Clear-review plan written with [bold]{planned_count}[/] transactions "
         f"in: {', '.join(sorted(trust_categories))}"
     )
+    if dry_run:
+        print_dry_run_table(
+            f"Dry run - {len(updates)} clears",
+            updates,
+            [("Merchant", None), ("Amount", "right"), ("Category", None), ("Account", None)],
+            lambda u: (
+                u["merchantName"],
+                _format_amount(u.get("amount")),
+                u["currentCategory"],
+                u.get("accountName", ""),
+            ),
+        )
+        return
+
     if not yes:
         confirmed = typer.confirm(f"Apply {len(updates)} planned review clears now?")
         if not confirmed:

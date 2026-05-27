@@ -173,8 +173,14 @@ def push_rule_command(
             help="Path to rule-suggestions.json (default: data/rules/latest).",
         ),
     ] = None,
-    yes: Annotated[
-        bool, typer.Option("--yes", help="Create without confirmation prompt.")
+    yes: Annotated[bool, typer.Option("--yes", help="Create without confirmation prompt.")] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Show the Monarch rule that would be created without calling the API.",
+            envvar="MONARCH_DRY_RUN",
+        ),
     ] = False,
 ) -> None:
     """Push a single local rule suggestion into Monarch as a live transaction rule."""
@@ -202,6 +208,10 @@ def push_rule_command(
             console.print(f"    … and {len(merchant_names) - 5} more")
     if merchant_pattern:
         console.print(f"  Pattern (contains): {merchant_pattern}")
+
+    if dry_run:
+        console.print("[cyan]Dry run:[/] no Monarch rule was created.")
+        return
 
     if not yes:
         confirmed = typer.confirm("Push this rule to Monarch?")
@@ -244,15 +254,23 @@ def push_rule_command(
 def delete_monarch_rule_command(
     rule_id: Annotated[
         str,
-        typer.Argument(
-            help="Monarch rule ID to delete (from `monarch rules list`)."
-        ),
+        typer.Argument(help="Monarch rule ID to delete (from `monarch rules list`)."),
     ],
-    yes: Annotated[
-        bool, typer.Option("--yes", help="Delete without confirmation prompt.")
+    yes: Annotated[bool, typer.Option("--yes", help="Delete without confirmation prompt.")] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Show which Monarch rule would be deleted without calling the API.",
+            envvar="MONARCH_DRY_RUN",
+        ),
     ] = False,
 ) -> None:
     """Delete a transaction rule from Monarch by its ID."""
+    if dry_run:
+        console.print(f"[cyan]Dry run:[/] would delete Monarch rule {rule_id}.")
+        return
+
     if not yes:
         confirmed = typer.confirm(f"Delete Monarch rule {rule_id}?")
         if not confirmed:
