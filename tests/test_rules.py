@@ -201,3 +201,36 @@ def test_push_rule_emits_create_rule_receipt(tmp_path, monkeypatch) -> None:
     receipt = read_json(receipts[0])
     assert receipt["operations"][0]["type"] == "create_rule"
     assert receipt["operations"][0]["entityId"] == "monarch-rule-99"
+
+
+def test_rules_revert_no_receipt_exits_cleanly(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(rules_app, ["revert"])
+    assert result.exit_code == 1
+    assert "No revert receipt found" in result.output
+
+
+def test_rules_revert_dry_run_shows_table(tmp_path, monkeypatch) -> None:
+    from monarch_money_tools.paths import rules_revert_dir
+    from monarch_money_tools.revert import build_revert_receipt, write_revert_receipt
+
+    monkeypatch.chdir(tmp_path)
+    receipt = build_revert_receipt(
+        "monarch rules apply",
+        [
+            {
+                "type": "update_transaction",
+                "entityId": "txn-3",
+                "merchantName": "Chipotle",
+                "before": {"categoryId": "cat-0", "categoryName": "Uncategorized", "needsReview": True},
+                "after": {"categoryId": "cat-6", "categoryName": "Dining", "needsReview": False},
+            }
+        ],
+    )
+    write_revert_receipt(rules_revert_dir(), receipt)
+
+    runner = CliRunner()
+    result = runner.invoke(rules_app, ["revert", "--dry-run"])
+    assert result.exit_code == 0
+    assert "Chipotle" in result.output
