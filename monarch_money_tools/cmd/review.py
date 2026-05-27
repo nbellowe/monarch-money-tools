@@ -4,7 +4,6 @@ from typing import Annotated
 
 import typer
 
-from ..monarch_api import apply_transaction_updates
 from ..paths import review_latest_dir
 from ..review import (
     DEFAULT_CLEAR_REVIEW_CATEGORIES,
@@ -365,19 +364,10 @@ def apply_llm_review_command(
         if not confirmed:
             raise typer.Abort()
 
-    api_updates = [
-        {
-            "transactionId": u["transactionId"],
-            "merchantName": u["merchantName"],
-            "suggestedCategory": u["suggestedCategory"],
-            "categoryId": u["categoryId"],
-            "setNeedsReview": False,
-        }
-        for u in updates
-        if u.get("categoryId")
-    ]
-    results = run_async(apply_transaction_updates(api_updates))
-    console.print(f"[green]Applied LLM review updates:[/] {len(results)}")
+    from ..llm_review import apply_llm_review_plan
+
+    result = run_async(apply_llm_review_plan(updates))
+    console.print(f"[green]Applied LLM review updates:[/] {result['appliedCount']}")
 
 
 @review_app.command("bulk-clear")
