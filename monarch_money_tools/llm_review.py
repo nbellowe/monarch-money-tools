@@ -27,7 +27,8 @@ from collections import defaultdict
 import yaml
 
 from .env import get_config
-from .paths import canonical_taxonomy_file, review_latest_dir
+from .monarch_api import apply_transaction_updates
+from .paths import canonical_taxonomy_file, review_latest_dir, review_revert_dir
 from .storage import JsonObject, load_bundle, now_iso, write_csv, write_json, write_text
 
 FOCUS_CATEGORIES = {"Uncategorized", "Misc Travel Expenses", "Paychecks"}
@@ -360,3 +361,44 @@ def _render_plan(plan: JsonObject) -> str:
 | --- | --- | --- | --- | --- | --- | --- |
 {rows(low) or "| _None_ | | | | | | |"}
 """
+
+
+async def apply_llm_review_plan(updates: list[JsonObject]) -> JsonObject:
+    """Apply LLM review plan updates to Monarch and write a revert receipt."""
+    from .revert import build_revert_receipt, snapshot_transaction_before, write_revert_receipt
+
+    bundle = load_bundle()
+    operations: list[JsonObject] = []
+    api_updates: list[JsonObject] = []
+
+    for u in updates:
+        if not u.get("categoryId"):
+            continue
+        api_update: JsonObject = {
+            "transactionId": u["transactionId"],
+            "merchantName": u["merchantName"],
+            "suggestedCategory": u["suggestedCategory"],
+            "categoryId": u["categoryId"],
+            "setNeedsReview": False,
+        }
+        api_updates.append(api_update)
+        before = snapshot_transaction_before(u["transactionId"], bundle)
+        after: JsonObject = {
+            "categoryId": u["categoryId"],
+            "categoryName": u["suggestedCategory"],
+            "needsReview": False,
+        }
+        operations.append(
+            {
+                "type": "update_transaction",
+                "entityId": u["transactionId"],
+                "merchantName": u.get("merchantName", ""),
+                "before": before,
+                "after": after,
+            }
+        )
+
+    results = await apply_transaction_updates(api_updates)
+    receipt = build_revert_receipt("monarch review llm-apply", operations)
+    write_revert_receipt(review_revert_dir(), receipt)
+    return {"appliedCount": len(results), "results": results}

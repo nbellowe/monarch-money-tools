@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import typer
 
-from .cmd._utils import console, exit_with_file_error, run_async  # noqa: F401 – re-exported
 from .cmd.cleanup import apply_cleanup_command, cleanup_app
 from .cmd.data import data_app, doctor_command, import_command, pull_command, run_command
 from .cmd.misc import init_command, init_profile_command, portfolio_command, retire_command

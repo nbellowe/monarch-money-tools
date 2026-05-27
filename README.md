@@ -4,6 +4,8 @@ A CLI for Monarch Money users who want programmatic control over transaction cat
 
 Built for technical users who want to bulk-categorize transactions, apply deterministic cleanup rules, run LLM-assisted reviews, and push changes back to Monarch via its unofficial API.
 
+**[Full documentation at nbellowe.com/monarch-money-tools](https://nbellowe.com/monarch-money-tools)**
+
 > **Unofficial API notice:** This tool uses Monarch Money's unofficial GraphQL API. It may break without notice. Use at your own risk. Not affiliated with Monarch Money.
 
 ---

@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
+from typer.testing import CliRunner
+
+from monarch_money_tools.cmd.cleanup import cleanup_app
 from monarch_money_tools.paths import canonical_taxonomy_file
 from monarch_money_tools.storage import write_json
 from monarch_money_tools.taxonomy_cleanup import (
@@ -122,3 +127,79 @@ def test_filter_cleanup_candidates_respects_limit() -> None:
     }
     result = filter_cleanup_candidates(plan, decisions={}, skip_blocked=False, source=None, limit=2)
     assert len(result) == 2
+
+
+def test_apply_cleanup_plan_emits_receipt(tmp_path, monkeypatch) -> None:
+    from monarch_money_tools.taxonomy_cleanup import apply_cleanup_plan
+
+    monkeypatch.chdir(tmp_path)
+    mini_bundle = {
+        "transactions": [{"id": "t4", "categoryName": "Misc Shopping", "needsReview": False}],
+        "categories": [
+            {"id": "c4", "name": "Misc Shopping"},
+            {"id": "c5", "name": "Shopping"},
+        ],
+    }
+    candidates = [
+        {
+            "transactionId": "t4",
+            "merchantName": "Target",
+            "suggestedCategory": "Shopping",
+            "categoryId": "c5",
+            "setNeedsReview": False,
+        }
+    ]
+    with (
+        patch(
+            "monarch_money_tools.taxonomy_cleanup.apply_transaction_updates",
+            new_callable=AsyncMock,
+        ) as mock_apply,
+        patch("monarch_money_tools.taxonomy_cleanup.load_bundle", return_value=mini_bundle),
+    ):
+        mock_apply.return_value = [{"id": "t4"}]
+        result = asyncio.run(apply_cleanup_plan(candidates))
+
+    assert result["appliedCount"] == 1
+    receipts = list((tmp_path / "data" / "cleanup" / "revert").glob("revert-*.json"))
+    assert len(receipts) == 1
+
+
+def test_cleanup_revert_no_receipt_exits_cleanly(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(cleanup_app, ["revert"])
+    assert result.exit_code == 1
+    assert "No revert receipt found" in result.output
+
+
+def test_cleanup_revert_dry_run_shows_table(tmp_path, monkeypatch) -> None:
+    from monarch_money_tools.paths import cleanup_revert_dir
+    from monarch_money_tools.revert import build_revert_receipt, write_revert_receipt
+
+    monkeypatch.chdir(tmp_path)
+    receipt = build_revert_receipt(
+        "monarch cleanup apply",
+        [
+            {
+                "type": "update_transaction",
+                "entityId": "txn-2",
+                "merchantName": "Target",
+                "before": {
+                    "categoryId": "cat-4",
+                    "categoryName": "Misc Shopping",
+                    "needsReview": False,
+                },
+                "after": {
+                    "categoryId": "cat-5",
+                    "categoryName": "Shopping",
+                    "needsReview": False,
+                },
+            }
+        ],
+    )
+    write_revert_receipt(cleanup_revert_dir(), receipt)
+
+    runner = CliRunner()
+    result = runner.invoke(cleanup_app, ["revert", "--dry-run"])
+    assert result.exit_code == 0
+    assert "Target" in result.output

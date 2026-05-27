@@ -69,23 +69,41 @@ def test_load_decisions_returns_empty_when_no_file(
 def test_apply_cleanup_respects_decision_log(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    from unittest.mock import AsyncMock
+
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("MONARCH_DRY_RUN", raising=False)
     _make_plan(tmp_path)
     save_decision("txn-1", "accepted")
     save_decision("txn-2", "rejected")
 
+    mini_bundle = {
+        "transactions": [
+            {"id": "txn-1", "categoryName": "Auto Maintenance", "needsReview": False},
+            {"id": "txn-2", "categoryName": "Uncategorized", "needsReview": False},
+        ],
+        "categories": [
+            {"id": "cat-1", "name": "Auto Maintenance & Fees"},
+            {"id": "cat-2", "name": "Shopping"},
+        ],
+    }
+
     captured_updates = []
 
-    def fake_apply_transaction_updates(updates: list[dict[str, object]]) -> list[dict[str, object]]:
+    def _capture(updates):  # type: ignore[no-untyped-def]
         captured_updates.extend(updates)
         return updates
 
+    mock_apply = AsyncMock(side_effect=_capture)
+
     monkeypatch.setattr(
-        "monarch_money_tools.cmd.cleanup.apply_transaction_updates",
-        fake_apply_transaction_updates,
+        "monarch_money_tools.taxonomy_cleanup.apply_transaction_updates",
+        mock_apply,
     )
-    monkeypatch.setattr("monarch_money_tools.cmd.cleanup.run_async", lambda value: value)
+    monkeypatch.setattr(
+        "monarch_money_tools.taxonomy_cleanup.load_bundle",
+        lambda: mini_bundle,
+    )
 
     runner = CliRunner()
     result = runner.invoke(app, ["apply-cleanup", "--yes"])

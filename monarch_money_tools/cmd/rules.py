@@ -6,12 +6,15 @@ import typer
 from rich.table import Table
 
 from ..monarch_api import delete_monarch_rule, fetch_transaction_rules
+from ..paths import rules_revert_dir
+from ..revert import build_revert_receipt, execute_revert, find_latest_receipt, write_revert_receipt
 from ..rules import (
     build_apply_plan,
     build_push_rule_payload,
     build_rule_suggestions,
     load_rule_suggestions,
 )
+from ..storage import read_json
 from ._utils import _format_amount, console, print_dry_run_table, run_async
 
 rules_app = typer.Typer(help="Rule suggestion and Monarch rule commands.", no_args_is_help=True)
@@ -248,6 +251,15 @@ def push_rule_command(
     console.print(
         f"[green]Created Monarch rule:[/] {new_rule.get('id')} (order {new_rule.get('order')})"
     )
+    receipt_op: dict[str, object] = {
+        "type": "create_rule",
+        "entityId": str(new_rule.get("id", "")),
+        "ruleName": match["name"],
+        "before": None,
+        "after": {"monarchRuleId": str(new_rule.get("id", ""))},
+    }
+    receipt = build_revert_receipt("monarch rules push", [receipt_op])
+    write_revert_receipt(rules_revert_dir(), receipt)
 
 
 @rules_app.command("delete")
@@ -283,3 +295,84 @@ def delete_monarch_rule_command(
         raise typer.Exit(1)
 
     console.print(f"[green]Deleted rule:[/] {rule_id}")
+
+
+@rules_app.command("revert")
+def revert_rules_command(
+    receipt: Annotated[
+        str | None,
+        typer.Option("--receipt", help="Path to a specific revert receipt file."),
+    ] = None,
+    yes: Annotated[
+        bool, typer.Option("--yes", help="Revert without an interactive prompt.")
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Show what would be reverted without calling the API.",
+            envvar="MONARCH_DRY_RUN",
+        ),
+    ] = False,
+) -> None:
+    """Revert the latest rules apply or push using its revert receipt."""
+    from pathlib import Path
+
+    receipt_path = Path(receipt) if receipt else find_latest_receipt(rules_revert_dir())
+    if not receipt_path:
+        console.print(
+            "[red]No revert receipt found.[/] "
+            "Run `monarch rules apply` or `monarch rules push` first."
+        )
+        raise typer.Exit(1)
+
+    receipt_data = read_json(receipt_path)
+    ops = list(receipt_data.get("operations") or [])
+
+    if not ops:
+        console.print("[yellow]No revertable operations in this receipt.[/]")
+        raise typer.Exit(0)
+
+    txn_ops = [op for op in ops if op.get("type") == "update_transaction"]
+    rule_ops = [op for op in ops if op.get("type") == "create_rule"]
+
+    console.print(f"Using receipt: [dim]{receipt_path}[/] ({len(ops)} operations)")
+
+    if txn_ops:
+        print_dry_run_table(
+            f"{'Dry run - ' if dry_run else ''}Revert {len(txn_ops)} transaction updates",
+            txn_ops,
+            [
+                ("Merchant", None),
+                ("Current Category", None),
+                ("Restoring Category", None),
+                ("Review", None),
+            ],
+            lambda op: (
+                op.get("merchantName", ""),
+                (op.get("after") or {}).get("categoryName", ""),
+                (op.get("before") or {}).get("categoryName", ""),
+                str((op.get("before") or {}).get("needsReview", "")),
+            ),
+        )
+
+    if rule_ops:
+        print_dry_run_table(
+            f"{'Dry run - ' if dry_run else ''}Delete {len(rule_ops)} Monarch rules",
+            rule_ops,
+            [("Rule Name", None), ("Monarch Rule ID", None)],
+            lambda op: (op.get("ruleName", ""), op.get("entityId", "")),
+        )
+
+    if dry_run:
+        return
+
+    if not yes:
+        confirmed = typer.confirm(f"Revert {len(ops)} operations in Monarch? Continue?")
+        if not confirmed:
+            raise typer.Abort()
+
+    result = run_async(execute_revert(receipt_path))
+    console.print(f"[green]Reverted:[/] {result['revertedCount']} operations")
+    if result.get("skippedCount"):
+        console.print(f"[yellow]Skipped:[/] {result['skippedCount']} operations (unknown type)")

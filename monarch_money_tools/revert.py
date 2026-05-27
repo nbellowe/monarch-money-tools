@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
-from .storage import ensure_dir, now_iso, read_json, timestamp_slug, write_json
+from rich.console import Console
 
-JsonObject = dict[str, Any]
+from .monarch_api import apply_transaction_updates, delete_monarch_rule
+from .storage import JsonObject, ensure_dir, now_iso, read_json, timestamp_slug, write_json
+
+console = Console()
 
 
 def snapshot_transaction_before(txn_id: str, bundle: JsonObject) -> JsonObject:
@@ -18,8 +20,7 @@ def snapshot_transaction_before(txn_id: str, bundle: JsonObject) -> JsonObject:
     will skip that operation with a warning).
     """
     cat_by_name: dict[str, str] = {
-        str(c.get("name", "")): str(c.get("id", ""))
-        for c in (bundle.get("categories") or [])
+        str(c.get("name", "")): str(c.get("id", "")) for c in (bundle.get("categories") or [])
     }
     txn = next(
         (t for t in (bundle.get("transactions") or []) if str(t.get("id", "")) == str(txn_id)),
@@ -72,3 +73,53 @@ def find_latest_receipt(revert_dir: Path) -> Path | None:
         except Exception:
             continue
     return None
+
+
+async def execute_revert(receipt_path: Path) -> JsonObject:
+    """
+    Load the receipt at receipt_path, dispatch each operation to its inversion
+    handler, mark receipt reverted=True, and overwrite the file.
+    Returns {revertedAt, revertedCount, skippedCount}.
+    """
+    receipt = read_json(receipt_path)
+    operations: list[JsonObject] = receipt.get("operations") or []
+    reverted = 0
+    skipped = 0
+    for op in operations:
+        success = await _invert_operation(op)
+        if success:
+            reverted += 1
+        else:
+            skipped += 1
+    reverted_at = now_iso()
+    receipt["reverted"] = True
+    receipt["revertedAt"] = reverted_at
+    write_json(receipt_path, receipt)
+    return {"revertedAt": reverted_at, "revertedCount": reverted, "skippedCount": skipped}
+
+
+async def _invert_operation(op: JsonObject) -> bool:
+    """Dispatch one receipt operation to its inverse API call. Returns True on success."""
+    op_type = str(op.get("type", ""))
+    before: JsonObject = op.get("before") or {}
+
+    match op_type:
+        case "update_transaction":
+            await apply_transaction_updates(
+                [
+                    {
+                        "transactionId": str(op["entityId"]),
+                        "merchantName": op.get("merchantName", ""),
+                        "suggestedCategory": before.get("categoryName"),
+                        "categoryId": before.get("categoryId"),
+                        "setNeedsReview": before.get("needsReview"),
+                    }
+                ]
+            )
+            return True
+        case "create_rule":
+            await delete_monarch_rule(str(op["entityId"]))
+            return True
+        case _:
+            console.print(f"[yellow]Unknown operation type '{op_type}', skipping.[/]")
+            return False
