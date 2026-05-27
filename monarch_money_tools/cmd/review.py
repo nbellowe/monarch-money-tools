@@ -220,7 +220,7 @@ def apply_clear_reviews_command(
     console.print(f"[green]Cleared review flag on:[/] {result['requestedCount']} transactions")
 
 
-@review_app.command("llm")
+@review_app.command("llm-plan")
 def llm_review_command(
     focus: Annotated[
         str | None,
@@ -285,6 +285,24 @@ def llm_review_command(
         f"[green]LLM review plan written:[/] data/review/latest/llm-review-plan.{{json,csv,md}} "
         f"({s['updateCount']} updates proposed: "
         f"{s['highConfidenceCount']} high-confidence, {s['lowConfidenceCount']} low)"
+    )
+
+
+@review_app.command("llm", hidden=True, deprecated=True)
+def llm_review_command_deprecated(
+    focus: Annotated[str | None, typer.Option("--focus")] = None,
+    backend: Annotated[str, typer.Option("--backend")] = "cli",
+    model: Annotated[str | None, typer.Option("--model")] = None,
+    skip_p2p: Annotated[bool, typer.Option("--skip-p2p/--no-skip-p2p")] = True,
+    dry_run: Annotated[bool, typer.Option("--dry-run", envvar="MONARCH_DRY_RUN")] = False,
+) -> None:
+    """Deprecated: use `monarch review llm-plan` instead."""
+    console.print(
+        "[yellow]Warning:[/] `monarch review llm` is deprecated. "
+        "Use `monarch review llm-plan` instead."
+    )
+    llm_review_command(
+        focus=focus, backend=backend, model=model, skip_p2p=skip_p2p, dry_run=dry_run
     )
 
 
