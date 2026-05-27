@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Retirement Simulator</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
 <style>
   :root {
     --bg:       #0d1117;
@@ -41,16 +42,48 @@
   }
   .header-title { font-size: 18px; font-weight: 700; color: var(--text); }
   .header-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .header-actions {
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 10px; margin-left: auto;
+  }
   .header-badge {
     background: var(--surface2); border: 1px solid var(--border);
     border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--muted);
   }
+  .sidebar-toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 6px; min-height: 30px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 12px;
+    color: var(--muted); font: inherit; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .sidebar-toggle:hover,
+  .sidebar-toggle:focus-visible {
+    border-color: var(--accent);
+    color: var(--text);
+    outline: none;
+  }
+  .sidebar-toggle svg {
+    width: 15px; height: 15px;
+    transition: transform 0.2s;
+  }
+  .sidebar-toggle[aria-expanded="false"] svg { transform: scaleX(-1); }
 
   /* ── Layout ─────────────────────────────────────── */
   .layout {
     display: grid;
     grid-template-columns: var(--sidebar) 1fr;
     height: calc(100vh - 57px);
+  }
+  .layout.sidebar-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .layout.sidebar-collapsed .sidebar {
+    display: none;
+  }
+  .layout.sidebar-collapsed .main {
+    grid-column: 1;
   }
 
   /* ── Sidebar ─────────────────────────────────────── */
@@ -88,8 +121,20 @@
 
   /* Presets */
   .preset-grid {
+    display: flex; flex-direction: column;
+    gap: 12px; padding: 10px 16px 14px;
+  }
+  .scenario-type-label {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .scenario-options {
     display: grid; grid-template-columns: 1fr 1fr;
-    gap: 6px; padding: 10px 16px 14px;
+    gap: 6px;
   }
   .preset-btn {
     background: var(--surface2); border: 1px solid var(--border);
@@ -106,8 +151,40 @@
   .control-label {
     display: flex; justify-content: space-between; align-items: center;
     margin-bottom: 5px; font-size: 12px; color: var(--muted);
+    gap: 10px;
   }
   .control-val { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .control-input,
+  .control-select {
+    width: 100%;
+    min-height: 34px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface2);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    padding: 7px 9px;
+    outline: none;
+  }
+  .control-input:focus,
+  .control-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(167,139,250,0.16);
+  }
+  .control-select {
+    appearance: none;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+      linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position:
+      calc(100% - 16px) 14px,
+      calc(100% - 11px) 14px;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 28px;
+  }
 
   input[type=range] {
     width: 100%; height: 4px;
@@ -157,6 +234,90 @@
   }
   .guardrails-panel.dim { opacity: 0.3; pointer-events: none; }
 
+  .inline-note {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .yaml-textarea {
+    width: 100%;
+    min-height: 330px;
+    resize: vertical;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #0b1016;
+    color: var(--text);
+    font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    outline: none;
+    padding: 10px;
+    tab-size: 2;
+  }
+  .yaml-textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(167,139,250,0.16);
+  }
+  .yaml-actions {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .yaml-btn {
+    min-height: 32px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface2);
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .yaml-btn:hover,
+  .yaml-btn:focus-visible {
+    border-color: var(--accent);
+    color: var(--text);
+    outline: none;
+  }
+  .yaml-btn.primary {
+    color: var(--accent);
+    border-color: rgba(167,139,250,0.55);
+    background: rgba(167,139,250,0.08);
+  }
+  .yaml-status {
+    min-height: 18px;
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  .yaml-status.ok { color: var(--success); }
+  .yaml-status.error { color: var(--danger); }
+  .yaml-status.dirty { color: var(--warn); }
+
+  [data-tooltip] { position: relative; }
+  [data-tooltip]:hover::after,
+  [data-tooltip]:focus-within::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    z-index: 500;
+    left: 0;
+    bottom: calc(100% + 8px);
+    max-width: min(320px, 82vw);
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #0b1016;
+    color: var(--text);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.36);
+    font-size: 12px;
+    line-height: 1.35;
+    text-transform: none;
+    letter-spacing: 0;
+    pointer-events: none;
+  }
+
   /* ── Main content ─────────────────────────────── */
   .main {
     overflow-y: auto; overflow-x: hidden;
@@ -193,12 +354,12 @@
   }
   .chart-header {
     display: flex; align-items: flex-start; justify-content: space-between;
-    margin-bottom: 16px;
+    margin-bottom: 16px; gap: 12px;
   }
   .chart-title { font-size: 15px; font-weight: 600; }
   .chart-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
   .chart-legend {
-    display: flex; gap: 14px; align-items: center;
+    display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
     font-size: 11px; color: var(--muted);
   }
   .legend-item { display: flex; align-items: center; gap: 5px; }
@@ -214,6 +375,11 @@
   /* Two column charts row */
   .charts-row {
     display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  }
+
+  .chart-card canvas {
+    width: 100% !important;
+    height: 320px !important;
   }
 
   /* Scenario comparison */
@@ -274,6 +440,88 @@
     color: var(--warn);
     pointer-events: none;
   }
+
+  @media (max-width: 1180px) {
+    .metrics-row { grid-template-columns: repeat(3, 1fr); }
+    .scenario-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 900px) {
+    :root { --sidebar: minmax(0, 1fr); }
+    .header {
+      position: static;
+      padding: 12px 16px;
+      align-items: flex-start;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .header-badge { white-space: nowrap; }
+    .header-actions {
+      align-items: center;
+      justify-content: flex-end;
+    }
+    .layout {
+      display: block;
+      height: auto;
+    }
+    .sidebar {
+      border-right: 0;
+      border-bottom: 1px solid var(--border);
+      max-height: none;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+    .layout.sidebar-collapsed .sidebar { display: none; }
+    .main {
+      padding: 16px;
+    }
+    .metrics-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .charts-row {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 560px) {
+    body { font-size: 13px; }
+    .header-title { font-size: 16px; }
+    .header-sub { max-width: 100%; }
+    .header-actions {
+      width: 100%;
+      justify-content: space-between;
+    }
+    .sidebar-toggle {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .section-header { padding: 12px 14px; }
+    .section-body { padding: 0 14px 14px; }
+    .preset-grid,
+    .scenario-options,
+    .yaml-actions,
+    .metrics-row,
+    .scenario-grid {
+      grid-template-columns: 1fr;
+    }
+    .metric-card,
+    .chart-card {
+      padding: 14px;
+      border-radius: 8px;
+    }
+    .metric-value { font-size: 22px; }
+    .chart-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .chart-card canvas {
+      height: 260px !important;
+    }
+    .guardrails-insight {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
 </style>
 </head>
 <body>
@@ -283,13 +531,22 @@
     <div class="header-title">Retirement Simulator</div>
     <div class="header-sub" id="header-sub">Person 1 · Real (inflation-adjusted) dollars</div>
   </div>
-  <div class="header-badge" id="mc-badge">300 Monte Carlo runs</div>
+  <div class="header-actions">
+    <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-controls="sidebar" aria-expanded="true">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <rect x="2" y="3" width="12" height="10" rx="2"/>
+        <path d="M6 3v10"/>
+      </svg>
+      <span id="sidebar-toggle-text">Hide controls</span>
+    </button>
+    <div class="header-badge" id="mc-badge">300 Monte Carlo runs</div>
+  </div>
 </div>
 
 <div class="layout">
 
 <!-- ── SIDEBAR ─────────────────────────────────────── -->
-<aside class="sidebar">
+<aside class="sidebar" id="sidebar">
 
   <!-- Preset Scenarios -->
   <div class="sidebar-section">
@@ -304,6 +561,27 @@
     </div>
   </div>
 
+  <!-- YAML Settings -->
+  <div class="sidebar-section">
+    <div class="section-header" data-section="yaml">
+      <span>YAML Settings</span>
+      <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4,6 8,10 12,6"/>
+      </svg>
+    </div>
+    <div class="section-body hidden" id="sb-yaml">
+      <div class="control-group" id="yamlSettingsGroup">
+        <textarea class="yaml-textarea" id="yamlSettings" spellcheck="false" aria-label="YAML settings"></textarea>
+        <div class="yaml-actions">
+          <button type="button" class="yaml-btn primary" id="applyYaml">Apply YAML</button>
+          <button type="button" class="yaml-btn" id="resetYaml">Reset</button>
+          <button type="button" class="yaml-btn" id="copyYaml">Copy</button>
+        </div>
+        <div class="yaml-status" id="yamlStatus" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Ages & Retirement -->
   <div class="sidebar-section">
     <div class="section-header open" data-section="ages">
@@ -314,12 +592,35 @@
     </div>
     <div class="section-body" id="sb-ages">
       <div class="control-group">
+        <div class="control-label"><span>Primary person name</span></div>
+        <input class="control-input" type="text" id="person1Name" value="Person 1" />
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span><span data-person1>Person 1</span> current age</span><span class="control-val" id="v-nathanAge">35</span></div>
+        <input type="range" id="nathanAge" min="18" max="80" step="1" value="35" />
+      </div>
+      <div class="control-group">
         <div class="control-label"><span><span data-person1>Person 1</span> retires at age</span><span class="control-val" id="v-retireNathanAge">55</span></div>
-        <input type="range" id="retireNathanAge" min="35" max="65" step="1" value="55" />
+        <input type="range" id="retireNathanAge" min="35" max="85" step="1" value="55" />
+      </div>
+      <div class="toggle-row">
+        <label class="toggle-label">
+          <input type="checkbox" id="hasSpouse" />
+          <span class="toggle-switch"></span>
+          Include spouse/partner
+        </label>
+      </div>
+      <div class="control-group" data-spouse-only>
+        <div class="control-label"><span>Spouse/partner name</span></div>
+        <input class="control-input" type="text" id="person2Name" value="Person 2" />
+      </div>
+      <div class="control-group" data-spouse-only>
+        <div class="control-label"><span><span data-person2>Person 2</span> current age</span><span class="control-val" id="v-tanyaAge">37</span></div>
+        <input type="range" id="tanyaAge" min="18" max="80" step="1" value="37" />
       </div>
       <div class="control-group" data-spouse-only>
         <div class="control-label"><span><span data-person2>Person 2</span> retires at age</span><span class="control-val" id="v-retireTanyaAge">57</span></div>
-        <input type="range" id="retireTanyaAge" min="35" max="65" step="1" value="57" />
+        <input type="range" id="retireTanyaAge" min="35" max="85" step="1" value="57" />
       </div>
     </div>
   </div>
@@ -371,6 +672,14 @@
         <input type="range" id="tanyaRsuAnnual" min="0" max="600000" step="10000" value="0" />
       </div>
       <div class="control-group">
+        <div class="control-label"><span>RSU vesting years</span><span class="control-val" id="v-rsuVestingYears">4</span></div>
+        <input type="range" id="rsuVestingYears" min="1" max="8" step="1" value="4" />
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span>Real income growth</span><span class="control-val" id="v-incomeGrowthReal">2.0%</span></div>
+        <input type="range" id="incomeGrowthReal" min="-0.02" max="0.08" step="0.005" value="0.02" />
+      </div>
+      <div class="control-group">
         <div class="control-label"><span>Effective tax rate</span><span class="control-val" id="v-effectiveIncomeTax">28%</span></div>
         <input type="range" id="effectiveIncomeTax" min="0.10" max="0.50" step="0.01" value="0.28" />
       </div>
@@ -394,6 +703,10 @@
         <div class="control-label"><span>Retirement spending (% of above)</span><span class="control-val" id="v-retirementSpendingFraction">85%</span></div>
         <input type="range" id="retirementSpendingFraction" min="0.50" max="1.30" step="0.05" value="0.85" />
       </div>
+      <div class="control-group">
+        <div class="control-label"><span>Real spending growth</span><span class="control-val" id="v-spendingGrowthReal">0.5%</span></div>
+        <input type="range" id="spendingGrowthReal" min="-0.02" max="0.05" step="0.005" value="0.005" />
+      </div>
     </div>
   </div>
 
@@ -411,6 +724,10 @@
         <input type="range" id="numKids" min="0" max="3" step="1" value="1" />
       </div>
       <div class="control-group">
+        <div class="control-label"><span>Years until first child</span><span class="control-val" id="v-firstKidYear">0</span></div>
+        <input type="range" id="firstKidYear" min="0" max="20" step="1" value="0" />
+      </div>
+      <div class="control-group">
         <div class="control-label"><span>Childcare / kid / year (ages 0–5)</span><span class="control-val" id="v-childcareAnnual">$25k</span></div>
         <input type="range" id="childcareAnnual" min="0" max="60000" step="1000" value="25000" />
       </div>
@@ -421,6 +738,35 @@
       <div class="control-group">
         <div class="control-label"><span>College contribution / kid</span><span class="control-val" id="v-collegeContribution">$50k</span></div>
         <input type="range" id="collegeContribution" min="0" max="200000" step="5000" value="50000" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Housing -->
+  <div class="sidebar-section">
+    <div class="section-header" data-section="housing">
+      <span>Housing</span>
+      <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4,6 8,10 12,6"/>
+      </svg>
+    </div>
+    <div class="section-body hidden" id="sb-housing">
+      <div class="toggle-row">
+        <label class="toggle-label">
+          <input type="checkbox" id="upgradeHouse" />
+          <span class="toggle-switch"></span>
+          Include future home upgrade
+        </label>
+      </div>
+      <div id="housing-controls" class="guardrails-panel dim">
+        <div class="control-group">
+          <div class="control-label"><span>Upgrade year</span><span class="control-val" id="v-upgradeYear">5</span></div>
+          <input type="range" id="upgradeYear" min="0" max="30" step="1" value="5" />
+        </div>
+        <div class="control-group">
+          <div class="control-label"><span>Additional upgrade cost</span><span class="control-val" id="v-upgradeAdditionalCost">$0</span></div>
+          <input type="range" id="upgradeAdditionalCost" min="0" max="2000000" step="50000" value="0" />
+        </div>
       </div>
     </div>
   </div>
@@ -482,13 +828,13 @@
       </svg>
     </div>
     <div class="section-body hidden" id="sb-market">
-      <!-- Return mode toggle -->
-      <div class="toggle-row" style="margin-bottom:10px">
-        <label class="toggle-label">
-          <input type="checkbox" id="useHistoricalReturns" />
-          <span class="toggle-switch"></span>
-          Use historical S&amp;P 500 data (1928–2023)
-        </label>
+      <div class="control-group">
+        <div class="control-label"><span>Return model</span></div>
+        <select class="control-select" id="simulationMethod">
+          <option value="monte_carlo">Monte Carlo</option>
+          <option value="historical_bootstrap">Historical bootstrap</option>
+          <option value="deterministic">Deterministic expected returns</option>
+        </select>
       </div>
       <div id="hist-note" style="display:none;font-size:11px;color:var(--muted);margin-bottom:10px;padding:8px;background:rgba(167,139,250,0.07);border-radius:6px;border:1px solid rgba(167,139,250,0.2)">
         Bootstraps from 96 actual annual real returns. Return sliders ignored for equity. Captures fat tails and real crash frequency.
@@ -525,22 +871,78 @@
     </div>
   </div>
 
+  <!-- Simulation -->
+  <div class="sidebar-section">
+    <div class="section-header open" data-section="simulation">
+      <span>Simulation &amp; Withdrawals</span>
+      <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4,6 8,10 12,6"/>
+      </svg>
+    </div>
+    <div class="section-body" id="sb-simulation">
+      <div class="control-group">
+        <div class="control-label"><span>Withdrawal strategy</span></div>
+        <select class="control-select" id="withdrawalStrategy">
+          <option value="constant_dollar">Constant dollar</option>
+          <option value="percent_portfolio">Percent of portfolio</option>
+          <option value="one_over_n">1/N remaining years</option>
+          <option value="guardrails">Guardrails</option>
+          <option value="guyton_klinger">Guyton-Klinger</option>
+          <option value="vanguard_dynamic">Vanguard dynamic</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span>Withdrawal rate target</span><span class="control-val" id="v-withdrawalRate">4.0%</span></div>
+        <input type="range" id="withdrawalRate" min="0.02" max="0.08" step="0.0025" value="0.04" />
+      </div>
+      <div class="control-group">
+        <div class="control-label"><span>Simulation horizon</span><span class="control-val" id="v-years">70 years</span></div>
+        <input type="range" id="years" min="20" max="90" step="1" value="70" />
+      </div>
+      <div class="control-group" id="mc-runs-group">
+        <div class="control-label"><span>Simulation runs</span><span class="control-val" id="v-mcRuns">300</span></div>
+        <input type="range" id="mcRuns" min="50" max="2000" step="50" value="300" />
+      </div>
+      <div id="dynamic-spending-controls" class="guardrails-panel dim">
+        <div class="control-group">
+          <div class="control-label"><span>Max annual spending cut</span><span class="control-val" id="v-dynamicSpendingFloor">-2.5%</span></div>
+          <input type="range" id="dynamicSpendingFloor" min="-0.10" max="0" step="0.005" value="-0.025" />
+        </div>
+        <div class="control-group">
+          <div class="control-label"><span>Max annual spending raise</span><span class="control-val" id="v-dynamicSpendingCeiling">5.0%</span></div>
+          <input type="range" id="dynamicSpendingCeiling" min="0" max="0.15" step="0.005" value="0.05" />
+        </div>
+      </div>
+      <div id="guyton-klinger-controls" class="guardrails-panel dim">
+        <div class="control-group">
+          <div class="control-label"><span>Capital preservation trigger</span><span class="control-val" id="v-gkCapitalPreservation">120%</span></div>
+          <input type="range" id="gkCapitalPreservation" min="1.05" max="1.50" step="0.05" value="1.20" />
+        </div>
+        <div class="control-group">
+          <div class="control-label"><span>Prosperity trigger</span><span class="control-val" id="v-gkProsperity">80%</span></div>
+          <input type="range" id="gkProsperity" min="0.50" max="0.95" step="0.05" value="0.80" />
+        </div>
+        <div class="control-group">
+          <div class="control-label"><span>Decision-rule adjustment</span><span class="control-val" id="v-gkAdjustment">10%</span></div>
+          <input type="range" id="gkAdjustment" min="0.05" max="0.25" step="0.05" value="0.10" />
+        </div>
+        <div class="control-group">
+          <div class="control-label"><span>Capital preservation sunset</span><span class="control-val" id="v-gkSunsetYears">15 years</span></div>
+          <input type="range" id="gkSunsetYears" min="0" max="25" step="1" value="15" />
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Guardrails / Flexible Spending -->
   <div class="sidebar-section">
     <div class="section-header open" data-section="guardrails">
-      <span>Flexible Spending</span>
+      <span>Guardrails</span>
       <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
         <polyline points="4,6 8,10 12,6"/>
       </svg>
     </div>
     <div class="section-body" id="sb-guardrails">
-      <div class="toggle-row">
-        <label class="toggle-label">
-          <input type="checkbox" id="flexibleSpending" />
-          <span class="toggle-switch"></span>
-          Cut spending in bad markets
-        </label>
-      </div>
       <div id="guardrails-controls" class="guardrails-panel dim">
         <div class="control-group">
           <div class="control-label"><span>Trigger: cut if withdrawal rate exceeds</span><span class="control-val" id="v-upperGuardrail">5.0%</span></div>
@@ -558,6 +960,10 @@
           <div class="control-label"><span>Hard spending floor (% of retirement base)</span><span class="control-val" id="v-spendingFloor">75%</span></div>
           <input type="range" id="spendingFloor" min="0.50" max="0.95" step="0.05" value="0.75" />
         </div>
+        <div class="control-group">
+          <div class="control-label"><span>Hard spending ceiling (% of retirement base)</span><span class="control-val" id="v-spendingCeiling">120%</span></div>
+          <input type="range" id="spendingCeiling" min="1.00" max="1.50" step="0.05" value="1.20" />
+        </div>
       </div>
     </div>
   </div>
@@ -570,7 +976,7 @@
   <!-- Guardrails insight bar (shows when guardrails enabled) -->
   <div class="guardrails-insight hidden" id="guardrails-insight">
     <div>
-      <div class="g-label">Survival without flexibility</div>
+      <div class="g-label">Survival without guardrails</div>
       <div style="font-size:18px;font-weight:700;color:var(--text)" id="gi-without">—</div>
     </div>
     <div style="font-size:24px;color:var(--muted)">→</div>
@@ -579,7 +985,7 @@
       <div class="g-diff" id="gi-with">—</div>
     </div>
     <div style="margin-left:auto;font-size:12px;color:var(--muted);max-width:280px">
-      Willing to cut spending by <strong id="gi-cut">10%</strong> when markets are down — never below
+      Spending adjusts by <strong id="gi-cut">10%</strong> when guardrails trigger — never below
       <strong id="gi-floor">75%</strong> of retirement baseline.
     </div>
   </div>
@@ -618,7 +1024,7 @@
     <div class="chart-header">
       <div>
         <div class="chart-title">Portfolio Trajectory</div>
-        <div class="chart-sub">Monte Carlo percentile bands · median deterministic path highlighted</div>
+        <div class="chart-sub" id="portfolio-chart-sub">Monte Carlo percentile bands · median deterministic path highlighted</div>
       </div>
       <div class="chart-legend">
         <span class="legend-item">
@@ -650,7 +1056,7 @@
       <div class="chart-header">
         <div>
           <div class="chart-title">Final Portfolio Distribution</div>
-          <div class="chart-sub">Nathan age 101 · all Monte Carlo outcomes</div>
+          <div class="chart-sub" id="dist-chart-sub">Person 1 age 101 · all outcomes</div>
         </div>
       </div>
       <canvas id="dist-chart"></canvas>
@@ -756,15 +1162,93 @@ let cfg = { ...DEFAULT };
 // ─────────────────────────────────────────────────────────────────────────────
 // Simulation
 // ─────────────────────────────────────────────────────────────────────────────
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function hasSpouse(c) {
+  return c.hasSpouse === true;
+}
+
+function strategyLabel(value) {
+  const labels = {
+    constant_dollar: 'Constant dollar',
+    percent_portfolio: 'Percent of portfolio',
+    one_over_n: '1/N remaining years',
+    guardrails: 'Guardrails',
+    guyton_klinger: 'Guyton-Klinger',
+    vanguard_dynamic: 'Vanguard dynamic',
+  };
+  return labels[value] ?? 'Constant dollar';
+}
+
+function methodLabel(value) {
+  const labels = {
+    monte_carlo: 'Monte Carlo',
+    historical_bootstrap: 'Historical bootstrap',
+    deterministic: 'Deterministic',
+  };
+  return labels[value] ?? 'Monte Carlo';
+}
+
+function retirementCoreSpending(c, y, income, portfolio, baseRetSpend, previousCore, previousReturn) {
+  const strategy = c.withdrawalStrategy ?? 'constant_dollar';
+  const floor = baseRetSpend * c.spendingFloor;
+  const ceiling = baseRetSpend * c.spendingCeiling;
+  let core = baseRetSpend;
+
+  if (strategy === 'percent_portfolio') {
+    core = income + portfolio * c.withdrawalRate;
+  } else if (strategy === 'one_over_n') {
+    const yearsLeft = Math.max(1, c.years - y);
+    core = income + portfolio / yearsLeft;
+  } else if (strategy === 'guardrails') {
+    const netDraw = Math.max(0, baseRetSpend - income);
+    const wRate = portfolio > 1 ? netDraw / portfolio : Infinity;
+    if (wRate > c.upperGuardrail) {
+      core = baseRetSpend * (1 - c.guardrailCut);
+    } else if (wRate < c.lowerGuardrail) {
+      core = baseRetSpend * (1 + c.guardrailCut);
+    }
+  } else if (strategy === 'guyton_klinger') {
+    const previous = previousCore ?? baseRetSpend;
+    let candidate = previousCore == null ? baseRetSpend : previous * (1 + c.spendingGrowthReal);
+    const candidateRate = portfolio > 1 ? Math.max(0, candidate - income) / portfolio : Infinity;
+    if (previousCore != null && previousReturn < 0 && candidateRate > c.withdrawalRate) {
+      candidate = previous;
+    }
+
+    const rate = portfolio > 1 ? Math.max(0, candidate - income) / portfolio : Infinity;
+    const capitalPreservationActive = c.years - y > c.gkSunsetYears;
+    if (capitalPreservationActive && rate > c.withdrawalRate * c.gkCapitalPreservation) {
+      core = candidate * (1 - c.gkAdjustment);
+    } else if (rate < c.withdrawalRate * c.gkProsperity) {
+      core = candidate * (1 + c.gkAdjustment);
+    } else {
+      core = candidate;
+    }
+  } else if (strategy === 'vanguard_dynamic') {
+    const target = income + portfolio * c.withdrawalRate;
+    const previous = previousCore ?? baseRetSpend;
+    const annualFloor = previous * (1 + c.dynamicSpendingFloor);
+    const annualCeiling = previous * (1 + c.dynamicSpendingCeiling);
+    core = clamp(target, annualFloor, annualCeiling);
+  }
+
+  return clamp(core, floor, ceiling);
+}
+
 function simulateOne(c, gauss) {
   let portfolio = c.portfolioTotal;
   const path = [];
+  let previousRetirementCore = null;
+  let previousPortfolioReturn = 0;
 
   for (let y = 0; y < c.years; y++) {
     const ageN = c.nathanAge + y;
     const ageT = c.tanyaAge + y;
     const nRet = ageN >= c.retireNathanAge;
-    const tRet = ageT >= c.retireTanyaAge;
+    const tRet = !hasSpouse(c) || ageT >= c.retireTanyaAge;
     const bothRet = nRet && tRet;
 
     // ── Income ──────────────────────────────────────────────────────────────
@@ -774,7 +1258,7 @@ function simulateOne(c, gauss) {
       const rsu = c.nathanRsuAnnual * Math.min(1, (y + 1) / c.rsuVestingYears);
       income += (sal + rsu) * (1 - c.effectiveIncomeTax);
     }
-    if (!tRet) {
+    if (hasSpouse(c) && !tRet) {
       const sal = c.tanyaSalaryBase * Math.pow(1 + c.incomeGrowthReal, y);
       const rsu = c.tanyaRsuAnnual * Math.min(1, (y + 1) / c.rsuVestingYears);
       income += (sal + rsu) * (1 - c.effectiveIncomeTax);
@@ -783,16 +1267,28 @@ function simulateOne(c, gauss) {
     const ssN = c.ssNathanAnnual * c.ssReductionFactor;
     const ssT = c.ssTanyaAnnual * c.ssReductionFactor;
     if (ageN >= c.ssClaimAge) income += ssN;
-    if (ageT >= c.ssClaimAge) income += ssT;
+    if (hasSpouse(c) && ageT >= c.ssClaimAge) income += ssT;
 
     // ── Spending ────────────────────────────────────────────────────────────
     const spendMult = Math.pow(1 + c.spendingGrowthReal, y);
     let spending;
     if (bothRet) {
-      spending = c.baseSpending * c.retirementSpendingFraction * spendMult;
+      const baseRetSpend = c.baseSpending * c.retirementSpendingFraction * spendMult;
+      const core = retirementCoreSpending(
+        c,
+        y,
+        income,
+        portfolio,
+        baseRetSpend,
+        previousRetirementCore,
+        previousPortfolioReturn
+      );
+      previousRetirementCore = core;
+      spending = core;
       if (ageN < c.medicareAge) spending += c.healthcareAnnual;
     } else {
       spending = c.baseSpending * spendMult;
+      previousRetirementCore = null;
     }
 
     // Kids
@@ -806,24 +1302,11 @@ function simulateOne(c, gauss) {
     // House upgrade one-time hit
     if (c.upgradeHouse && y === c.upgradeYear) spending += c.upgradeAdditionalCost;
 
-    // ── Flexible spending guardrails ─────────────────────────────────────────
-    if (bothRet && c.flexibleSpending && portfolio > 1) {
-      const netDraw = Math.max(0, spending - income);
-      const wRate = netDraw / portfolio;
-      const baseRetSpend = c.baseSpending * c.retirementSpendingFraction * spendMult;
-      const floor = baseRetSpend * c.spendingFloor;
-      const ceil  = baseRetSpend * c.spendingCeiling;
-      if (wRate > c.upperGuardrail) {
-        spending = Math.max(spending * (1 - c.guardrailCut), floor);
-      } else if (wRate < c.lowerGuardrail) {
-        spending = Math.min(spending * (1 + c.guardrailCut), ceil);
-      }
-    }
-
     // ── Portfolio return ─────────────────────────────────────────────────────
     const eqFrac  = bothRet ? c.equityFractionRetired : c.equityFractionWorking;
     const eqRet   = gauss(c.equityReturnReal, c.equityStd);  // real; gauss handles MC vs historical
     const portRet = eqFrac * eqRet + (1 - eqFrac) * c.bondReturnReal;
+    previousPortfolioReturn = portRet;
 
     portfolio = Math.max(portfolio * (1 + portRet) + income - spending, 0);
 
@@ -850,15 +1333,17 @@ function pct(arr, p) {
 
 function runMonteCarlo(c) {
   // Resolve nominal → real returns once before simulation
-  const eqReal   = c.useHistoricalReturns ? HIST_EQ_MEAN : (c.equityReturnNominal - c.inflation);
+  const method = c.simulationMethod ?? 'monte_carlo';
+  const eqReal   = method === 'historical_bootstrap' ? HIST_EQ_MEAN : (c.equityReturnNominal - c.inflation);
   const bdReal   = c.bondReturnNominal - c.inflation;
   const rc = { ...c, equityReturnReal: eqReal, bondReturnReal: bdReal };
 
   const detRng = (mu) => mu;  // always returns expected value for median path
   const medianPath = simulateOne(rc, detRng);
-  const allPaths = [];
-  for (let i = 0; i < rc.mcRuns; i++) {
-    const rng = rc.useHistoricalReturns ? makeHistRng(i * 997 + 42) : makeGauss(i * 997 + 42);
+  const allPaths = method === 'deterministic' ? [medianPath] : [];
+  const runCount = Math.max(1, Math.round(rc.mcRuns));
+  for (let i = 0; i < runCount && method !== 'deterministic'; i++) {
+    const rng = method === 'historical_bootstrap' ? makeHistRng(i * 997 + 42) : makeGauss(i * 997 + 42);
     allPaths.push(simulateOne(rc, rng));
   }
 
@@ -901,6 +1386,14 @@ function survivalColor(s) {
   return 'var(--danger)';
 }
 
+function primaryName() {
+  return (cfg.person1Name || MONARCH_META.person1Name || 'Person 1').trim();
+}
+
+function spouseName() {
+  return (cfg.person2Name || MONARCH_META.person2Name || 'Person 2').trim();
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Chart state
 // ─────────────────────────────────────────────────────────────────────────────
@@ -916,7 +1409,7 @@ const SPEND_CLR   = '#f85149';
 function baseChartOpts(yFmt) {
   return {
     responsive: true,
-    maintainAspectRatio: true,
+    maintainAspectRatio: false,
     animation: { duration: 300 },
     plugins: {
       legend: { display: false },
@@ -1029,7 +1522,7 @@ function updatePortfolioChart(stats) {
         titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 10,
         filter: item => !['P10','P25'].includes(item.dataset.label),
         callbacks: {
-          title: items => `${MONARCH_META.person1Name} age ${labels[items[0].dataIndex]}`,
+          title: items => `${primaryName()} age ${labels[items[0].dataIndex]}`,
           label: item => {
             const d = item.dataset.label;
             const v = item.raw;
@@ -1098,7 +1591,7 @@ function updateCashflowChart(medianPath) {
         backgroundColor: '#21262d', borderColor: '#30363d', borderWidth: 1,
         titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 10,
         callbacks: {
-          title: items => `${MONARCH_META.person1Name} age ${labels[items[0].dataIndex]}`,
+          title: items => `${primaryName()} age ${labels[items[0].dataIndex]}`,
           label: item => `${item.dataset.label}: ${fmtM(item.raw)}`,
         },
       },
@@ -1124,9 +1617,9 @@ function updateCashflowChart(medianPath) {
 // Distribution histogram
 // ─────────────────────────────────────────────────────────────────────────────
 function updateDistChart(finalVals) {
-  const maxVal  = Math.max(...finalVals);
+  const maxVal  = Math.max(...finalVals, 1);
   const bins    = 24;
-  const binSize = maxVal / bins;
+  const binSize = maxVal / bins || 1;
   const counts  = new Array(bins).fill(0);
   finalVals.forEach(v => {
     const b = Math.min(Math.floor(v / binSize), bins - 1);
@@ -1160,7 +1653,7 @@ function updateDistChart(finalVals) {
         titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 10,
         callbacks: {
           title: items => `≈ ${labels[items[0].dataIndex]}`,
-          label: item => `${item.raw} of ${cfg.mcRuns} scenarios`,
+          label: item => `${item.raw} of ${finalVals.length} scenarios`,
         },
       },
     },
@@ -1180,39 +1673,147 @@ function updateDistChart(finalVals) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Preset scenarios
+// Composable quick scenarios
 // ─────────────────────────────────────────────────────────────────────────────
-const PRESETS = [
-  { label: 'Baseline',      cfg: {} },
-  { label: 'Retire Now',    cfg: { retireNathanAge: DEFAULT.nathanAge, retireTanyaAge: DEFAULT.tanyaAge, retirementSpendingFraction: 0.90 } },
-  { label: 'Retire at 40',  cfg: { retireNathanAge: 40, retireTanyaAge: 42 } },
-  { label: '2 Kids',        cfg: { numKids: 2, firstKidYear: 2, baseSpending: 155000 } },
-  { label: '2 Kids + House',cfg: { numKids: 2, firstKidYear: 2, baseSpending: 160000, upgradeHouse: true, upgradeYear: 4, upgradeAdditionalCost: 400000 } },
-  { label: 'Conservative',  cfg: { swr: 0.035 } },
-  { label: 'High Spend',    cfg: { retirementSpendingFraction: 1.0, baseSpending: 175000 } },
-  { label: 'Market Bear',   cfg: { equityReturnNominal: 0.07, equityStd: 0.20, bondReturnNominal: 0.03, inflation: 0.04 } },
+const SCENARIO_GROUPS = [
+  {
+    id: 'return-model',
+    label: 'Return model',
+    options: [
+      { label: 'Monte Carlo', cfg: { simulationMethod: 'monte_carlo' } },
+      { label: 'Historical', cfg: { simulationMethod: 'historical_bootstrap' } },
+      { label: 'Deterministic', cfg: { simulationMethod: 'deterministic' } },
+    ],
+  },
+  {
+    id: 'withdrawal',
+    label: 'Withdrawal strategy',
+    options: [
+      { label: 'Constant', cfg: { withdrawalStrategy: 'constant_dollar' } },
+      { label: 'Guardrails', cfg: { withdrawalStrategy: 'guardrails' } },
+      { label: 'Guyton-Klinger', cfg: { withdrawalStrategy: 'guyton_klinger', withdrawalRate: 0.04 } },
+      { label: 'Vanguard', cfg: { withdrawalStrategy: 'vanguard_dynamic', withdrawalRate: 0.04 } },
+      { label: 'Percent', cfg: { withdrawalStrategy: 'percent_portfolio', withdrawalRate: 0.04 } },
+      { label: '1/N', cfg: { withdrawalStrategy: 'one_over_n' } },
+    ],
+  },
+  {
+    id: 'retirement-age',
+    label: 'Retirement age',
+    options: [
+      { label: 'Profile ages', cfg: () => ({ retireNathanAge: DEFAULT.retireNathanAge, retireTanyaAge: DEFAULT.retireTanyaAge }) },
+      { label: 'Retire now', cfg: () => ({ retireNathanAge: DEFAULT.nathanAge, retireTanyaAge: DEFAULT.tanyaAge }) },
+      { label: '5 yrs earlier', cfg: () => ({ retireNathanAge: DEFAULT.retireNathanAge - 5, retireTanyaAge: DEFAULT.retireTanyaAge - 5 }) },
+      { label: '5 yrs later', cfg: () => ({ retireNathanAge: DEFAULT.retireNathanAge + 5, retireTanyaAge: DEFAULT.retireTanyaAge + 5 }) },
+    ],
+  },
+  {
+    id: 'spending',
+    label: 'Spending level',
+    options: [
+      { label: 'Profile spend', cfg: () => ({ baseSpending: DEFAULT.baseSpending, retirementSpendingFraction: DEFAULT.retirementSpendingFraction }) },
+      { label: 'Lean spend', cfg: () => ({ baseSpending: DEFAULT.baseSpending * 0.85, retirementSpendingFraction: Math.max(0.5, DEFAULT.retirementSpendingFraction - 0.10) }) },
+      { label: 'High spend', cfg: () => ({ baseSpending: DEFAULT.baseSpending * 1.15, retirementSpendingFraction: Math.min(1.3, DEFAULT.retirementSpendingFraction + 0.10) }) },
+    ],
+  },
+  {
+    id: 'family-housing',
+    label: 'Family & housing',
+    options: [
+      { label: 'Profile', cfg: () => ({ numKids: DEFAULT.numKids, firstKidYear: DEFAULT.firstKidYear, upgradeHouse: DEFAULT.upgradeHouse, upgradeYear: DEFAULT.upgradeYear, upgradeAdditionalCost: DEFAULT.upgradeAdditionalCost }) },
+      { label: 'No kids/house', cfg: { numKids: 0, upgradeHouse: false, upgradeAdditionalCost: 0 } },
+      { label: 'Kids', cfg: () => ({ numKids: Math.max(2, DEFAULT.numKids), firstKidYear: DEFAULT.firstKidYear || 2, upgradeHouse: false }) },
+      { label: 'Kids + house', cfg: () => ({ numKids: Math.max(2, DEFAULT.numKids), firstKidYear: DEFAULT.firstKidYear || 2, upgradeHouse: true, upgradeYear: DEFAULT.upgradeYear || 4, upgradeAdditionalCost: DEFAULT.upgradeAdditionalCost || 400000 }) },
+    ],
+  },
+  {
+    id: 'market-stress',
+    label: 'Market stress',
+    options: [
+      { label: 'Profile market', cfg: () => ({ equityReturnNominal: DEFAULT.equityReturnNominal, equityStd: DEFAULT.equityStd, bondReturnNominal: DEFAULT.bondReturnNominal, inflation: DEFAULT.inflation }) },
+      { label: 'Bear market', cfg: { equityReturnNominal: 0.07, equityStd: 0.20, bondReturnNominal: 0.03, inflation: 0.04 } },
+      { label: 'High inflation', cfg: () => ({ equityReturnNominal: DEFAULT.equityReturnNominal, equityStd: DEFAULT.equityStd, bondReturnNominal: DEFAULT.bondReturnNominal, inflation: 0.05 }) },
+      { label: 'Low returns', cfg: () => ({ equityReturnNominal: DEFAULT.equityReturnNominal - 0.02, equityStd: DEFAULT.equityStd, bondReturnNominal: DEFAULT.bondReturnNominal - 0.01, inflation: DEFAULT.inflation }) },
+    ],
+  },
 ];
 
-function buildPresetCfg(preset) {
-  return { ...DEFAULT, ...preset.cfg };
+const COMPARISON_PRESETS = [
+  { label: 'Profile Baseline', cfg: {} },
+  { label: 'Retire Now', cfg: () => ({ retireNathanAge: DEFAULT.nathanAge, retireTanyaAge: DEFAULT.tanyaAge }) },
+  { label: 'Lean Spend', cfg: () => ({ baseSpending: DEFAULT.baseSpending * 0.85, retirementSpendingFraction: Math.max(0.5, DEFAULT.retirementSpendingFraction - 0.10) }) },
+  { label: 'High Spend', cfg: () => ({ baseSpending: DEFAULT.baseSpending * 1.15, retirementSpendingFraction: Math.min(1.3, DEFAULT.retirementSpendingFraction + 0.10) }) },
+  { label: 'Guyton-Klinger', cfg: { withdrawalStrategy: 'guyton_klinger', withdrawalRate: 0.04 } },
+  { label: 'Historical', cfg: { simulationMethod: 'historical_bootstrap' } },
+  { label: 'Bear Market', cfg: { equityReturnNominal: 0.07, equityStd: 0.20, bondReturnNominal: 0.03, inflation: 0.04 } },
+];
+
+function materializeScenarioCfg(scenario) {
+  return typeof scenario.cfg === 'function' ? scenario.cfg() : { ...scenario.cfg };
+}
+
+function buildScenarioCfg(scenario) {
+  return { ...DEFAULT, ...materializeScenarioCfg(scenario) };
+}
+
+function scenarioValueMatches(actual, expected) {
+  return typeof actual === 'number' && typeof expected === 'number'
+    ? Math.abs(actual - expected) < 0.000001
+    : actual === expected;
+}
+
+function optionMatchesCurrent(option) {
+  return Object.entries(materializeScenarioCfg(option))
+    .every(([key, value]) => scenarioValueMatches(cfg[key], value));
+}
+
+function updateScenarioButtonStates() {
+  SCENARIO_GROUPS.forEach((group, groupIndex) => {
+    let found = false;
+    group.options.forEach((option, optionIndex) => {
+      const btn = document.querySelector(
+        `.preset-btn[data-group="${groupIndex}"][data-option="${optionIndex}"]`
+      );
+      const active = !found && optionMatchesCurrent(option);
+      if (active) found = true;
+      btn?.classList.toggle('active', active);
+    });
+  });
+}
+
+function markCustom() {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  scenarioCache = null;
 }
 
 function renderPresets() {
   const grid = document.getElementById('preset-grid');
-  grid.innerHTML = PRESETS.map((p, i) =>
-    `<button class="preset-btn" data-idx="${i}">${p.label}</button>`
-  ).join('');
+  grid.innerHTML = SCENARIO_GROUPS.map((group, groupIndex) => `
+    <div class="scenario-type">
+      <div class="scenario-type-label">${group.label}</div>
+      <div class="scenario-options">
+        ${group.options.map((option, optionIndex) => `
+          <button class="preset-btn" data-group="${groupIndex}" data-option="${optionIndex}">${option.label}</button>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+
   grid.querySelectorAll('.preset-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      grid.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      const group = SCENARIO_GROUPS[+btn.dataset.group];
+      const option = group.options[+btn.dataset.option];
+      grid.querySelectorAll(`.preset-btn[data-group="${btn.dataset.group}"]`)
+        .forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      cfg = buildPresetCfg(PRESETS[+btn.dataset.idx]);
+      Object.assign(cfg, materializeScenarioCfg(option));
+      scenarioCache = null;
       syncUIFromCfg();
+      updateScenarioButtonStates();
       scheduleRender();
     });
   });
-  // Mark baseline as active initially
-  grid.querySelector('.preset-btn')?.classList.add('active');
+  updateScenarioButtonStates();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1222,9 +1823,8 @@ let scenarioCache = null;
 
 function renderScenarioGrid(customStats) {
   if (!scenarioCache) {
-    // Compute presets
-    scenarioCache = PRESETS.map(p => {
-      const sc = runMonteCarlo(buildPresetCfg(p));
+    scenarioCache = COMPARISON_PRESETS.map(p => {
+      const sc = runMonteCarlo(buildScenarioCfg(p));
       return { label: p.label, ...sc };
     });
   }
@@ -1267,15 +1867,14 @@ let noGuardrailsSurvival = null;
 
 function updateGuardrailsInsight(stats) {
   const bar = document.getElementById('guardrails-insight');
-  if (!cfg.flexibleSpending) {
+  if (cfg.withdrawalStrategy !== 'guardrails') {
     noGuardrailsSurvival = stats.survival;
     bar.classList.add('hidden');
     return;
   }
   bar.classList.remove('hidden');
 
-  // Run without guardrails to compare
-  const noGuards = runMonteCarlo({ ...cfg, flexibleSpending: false });
+  const noGuards = runMonteCarlo({ ...cfg, withdrawalStrategy: 'constant_dollar' });
   noGuardrailsSurvival = noGuards.survival;
 
   const wo = Math.round(noGuards.survival * 100);
@@ -1321,7 +1920,18 @@ function doRender() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Input binding
 // ─────────────────────────────────────────────────────────────────────────────
+function fmtPct(v, digits = 1) {
+  return `${(v * 100).toFixed(digits)}%`;
+}
+
+function fmtSignedPct(v, digits = 1) {
+  const sign = v > 0 ? '+' : '';
+  return `${sign}${(v * 100).toFixed(digits)}%`;
+}
+
 const FORMATS = {
+  nathanAge:                 v => String(Math.round(v)),
+  tanyaAge:                  v => String(Math.round(v)),
   retireNathanAge:           v => String(Math.round(v)),
   retireTanyaAge:            v => String(Math.round(v)),
   portfolioTotal:            v => fmtM(v),
@@ -1330,15 +1940,21 @@ const FORMATS = {
   tanyaSalaryBase:           v => fmtM(v),
   nathanRsuAnnual:           v => fmtM(v),
   tanyaRsuAnnual:            v => fmtM(v),
+  rsuVestingYears:           v => String(Math.round(v)),
+  incomeGrowthReal:          v => fmtPct(v),
   effectiveIncomeTax:        v => `${Math.round(v * 100)}%`,
   baseSpending:              v => fmtM(v),
   retirementSpendingFraction:v => `${Math.round(v * 100)}%`,
+  spendingGrowthReal:        v => fmtPct(v),
   healthcareAnnual:          v => fmtM(v),
   medicareAge:               v => String(Math.round(v)),
   numKids:                   v => String(Math.round(v)),
+  firstKidYear:              v => String(Math.round(v)),
   childcareAnnual:           v => fmtM(v),
   k12Annual:                 v => fmtM(v),
   collegeContribution:       v => fmtM(v),
+  upgradeYear:               v => String(Math.round(v)),
+  upgradeAdditionalCost:     v => fmtM(v),
   ssNathanAnnual:            v => fmtM(v),
   ssTanyaAnnual:             v => fmtM(v),
   ssClaimAge:                v => String(Math.round(v)),
@@ -1349,13 +1965,485 @@ const FORMATS = {
   inflation:                 v => `${(v * 100).toFixed(1)}%`,
   equityFractionWorking:     v => `${Math.round(v * 100)}%`,
   equityFractionRetired:     v => `${Math.round(v * 100)}%`,
+  withdrawalRate:            v => `${(v * 100).toFixed(1)}%`,
+  years:                     v => `${Math.round(v)} years`,
+  mcRuns:                    v => String(Math.round(v)),
   upperGuardrail:            v => `${(v * 100).toFixed(1)}%`,
   lowerGuardrail:            v => `${(v * 100).toFixed(1)}%`,
   guardrailCut:              v => `${Math.round(v * 100)}%`,
+  dynamicSpendingFloor:      v => fmtSignedPct(v),
+  dynamicSpendingCeiling:    v => fmtSignedPct(v),
+  gkCapitalPreservation:     v => `${Math.round(v * 100)}%`,
+  gkProsperity:              v => `${Math.round(v * 100)}%`,
+  gkAdjustment:              v => `${Math.round(v * 100)}%`,
+  gkSunsetYears:             v => `${Math.round(v)} years`,
   spendingFloor:             v => `${Math.round(v * 100)}%`,
+  spendingCeiling:           v => `${Math.round(v * 100)}%`,
 };
 
 const RANGE_FIELDS = Object.keys(FORMATS);
+const TEXT_FIELDS = ['person1Name', 'person2Name'];
+const SELECT_FIELDS = ['simulationMethod', 'withdrawalStrategy'];
+const CHECKBOX_FIELDS = ['hasSpouse', 'upgradeHouse'];
+const SIMULATION_METHODS = ['monte_carlo', 'historical_bootstrap', 'deterministic'];
+const WITHDRAWAL_STRATEGIES = [
+  'constant_dollar',
+  'percent_portfolio',
+  'one_over_n',
+  'guardrails',
+  'guyton_klinger',
+  'vanguard_dynamic',
+];
+const SIDEBAR_STORAGE_KEY = 'retirementSimulator.sidebarCollapsed';
+let yamlDirty = false;
+
+const TOOLTIPS = {
+  'sidebar-toggle': 'Show or hide the controls pane. On phones, expanded controls fill the screen and the results stay underneath.',
+  yamlSettings: 'Profile-shaped YAML for the same settings controlled by the sliders, buttons, and selects.',
+  applyYaml: 'Validate this YAML, update all controls, and rerun the simulation.',
+  resetYaml: 'Replace the YAML draft with the current control values.',
+  copyYaml: 'Copy the current YAML settings to the clipboard.',
+  person1Name: 'Display name used in headings, chart tooltips, and age labels.',
+  nathanAge: 'Current age of the primary person. The horizon runs from this age forward.',
+  retireNathanAge: 'Age when primary work income stops and retirement spending begins.',
+  hasSpouse: 'Controls whether spouse or partner income, retirement age, and benefits are included.',
+  person2Name: 'Display name for the spouse or partner when the profile includes one.',
+  tanyaAge: 'Current age of the spouse or partner.',
+  retireTanyaAge: 'Age when spouse or partner work income stops.',
+  portfolioTotal: 'Total investable assets available at the start of the simulation.',
+  swr: 'Planning threshold for the Required to Retire metric. This does not force actual spending.',
+  nathanSalaryBase: 'Primary annual base salary before taxes.',
+  tanyaSalaryBase: 'Spouse or partner annual base salary before taxes.',
+  nathanRsuAnnual: 'Primary annual equity or RSU grant value at full vest.',
+  tanyaRsuAnnual: 'Spouse or partner annual equity or RSU grant value at full vest.',
+  rsuVestingYears: 'Years until new RSU grants are treated as fully vested in annual income.',
+  incomeGrowthReal: 'Expected annual income growth after removing inflation.',
+  effectiveIncomeTax: 'Blended income tax rate applied to salary and RSU income.',
+  baseSpending: 'Annual working-year spending in today dollars.',
+  retirementSpendingFraction: 'Constant-dollar baseline retirement lifestyle spend as a fraction of working spending.',
+  spendingGrowthReal: 'Annual lifestyle spending growth after removing inflation.',
+  numKids: 'Number of children included in childcare, K-12, and college cash flows.',
+  firstKidYear: 'Years from now until the first child cost schedule starts.',
+  childcareAnnual: 'Annual childcare cost per child for ages 0 through 4.',
+  k12Annual: 'Annual incremental K-12 cost per child for ages 5 through 17.',
+  collegeContribution: 'One-time college contribution per child at age 18.',
+  upgradeHouse: 'Adds a one-time future housing cost to the spending path.',
+  upgradeYear: 'Simulation year when the home upgrade cost occurs.',
+  upgradeAdditionalCost: 'Extra one-time housing cost in today dollars.',
+  healthcareAnnual: 'Annual pre-Medicare healthcare cost added during retirement.',
+  medicareAge: 'Age when the pre-Medicare healthcare add-on stops.',
+  ssNathanAnnual: 'Primary annual Social Security benefit at the selected claim age.',
+  ssTanyaAnnual: 'Spouse or partner annual Social Security benefit at the selected claim age.',
+  ssClaimAge: 'Age when Social Security income begins.',
+  ssReductionFactor: 'Haircut applied to Social Security estimates.',
+  simulationMethod: 'Return engine: random Monte Carlo, historical bootstrap, or a deterministic expected-return path.',
+  equityReturnNominal: 'Expected annual stock return before inflation in Monte Carlo and deterministic modes.',
+  equityStd: 'Stock return volatility used by Monte Carlo mode.',
+  bondReturnNominal: 'Expected annual bond return before inflation.',
+  inflation: 'Expected annual inflation rate used to convert nominal returns to real returns.',
+  equityFractionWorking: 'Stock allocation before both people are retired.',
+  equityFractionRetired: 'Stock allocation after retirement begins.',
+  withdrawalStrategy: 'Algorithm used to decide retirement lifestyle spending.',
+  withdrawalRate: 'Portfolio percentage used by variable-rate strategies and Guyton-Klinger decision thresholds.',
+  years: 'Number of years to simulate from the primary person current age.',
+  mcRuns: 'Number of stochastic runs in Monte Carlo and historical bootstrap modes.',
+  dynamicSpendingFloor: 'Largest year-over-year lifestyle spending cut in the Vanguard dynamic strategy.',
+  dynamicSpendingCeiling: 'Largest year-over-year lifestyle spending raise in the Vanguard dynamic strategy.',
+  gkCapitalPreservation: 'Guyton-Klinger capital preservation trigger as a percentage of the initial withdrawal rate.',
+  gkProsperity: 'Guyton-Klinger prosperity trigger as a percentage of the initial withdrawal rate.',
+  gkAdjustment: 'Guyton-Klinger raise or cut size when a decision rule triggers.',
+  gkSunsetYears: 'Final years when Guyton-Klinger capital preservation cuts are disabled.',
+  upperGuardrail: 'If net withdrawal rate rises above this, guardrails cut lifestyle spending.',
+  lowerGuardrail: 'If net withdrawal rate falls below this, guardrails raise lifestyle spending.',
+  guardrailCut: 'Size of each guardrail spending adjustment.',
+  spendingFloor: 'Hard minimum lifestyle spending as a fraction of the constant-dollar baseline.',
+  spendingCeiling: 'Hard maximum lifestyle spending as a fraction of the constant-dollar baseline.',
+  'm-survival': 'Share of simulation paths with money remaining at the end of the horizon.',
+  'm-port-retire': 'Median portfolio balance in the year primary retirement starts.',
+  'm-port-70': 'Median portfolio balance when the primary person reaches age 70.',
+  'm-required': 'Constant-dollar retirement spending divided by the chosen SWR threshold.',
+  'm-fire': 'First retired year where the median path meets the Required to Retire threshold.',
+  'portfolio-chart': 'Portfolio percentile bands across all outcomes for the selected return model.',
+  'cashflow-chart': 'Median-path income, spending, and net savings through time.',
+  'dist-chart': 'Distribution of ending portfolio balances across simulated outcomes.',
+  'scenario-grid': 'Preset comparison cards recomputed with the same profile defaults.',
+};
+
+function setSidebarCollapsed(collapsed, persist) {
+  const layout = document.querySelector('.layout');
+  const sidebar = document.getElementById('sidebar');
+  const toggle = document.getElementById('sidebar-toggle');
+  const label = document.getElementById('sidebar-toggle-text');
+  if (!layout || !toggle) return;
+
+  layout.classList.toggle('sidebar-collapsed', collapsed);
+  toggle.setAttribute('aria-expanded', String(!collapsed));
+  toggle.setAttribute('aria-label', collapsed ? 'Show simulator controls' : 'Hide simulator controls');
+  if (sidebar) sidebar.setAttribute('aria-hidden', String(collapsed));
+  if (label) label.textContent = collapsed ? 'Show controls' : 'Hide controls';
+
+  if (persist) {
+    try {
+      window.localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? '1' : '0');
+    } catch {
+      // Ignore storage failures; the visible state still changes.
+    }
+  }
+}
+
+function bindSidebarToggle() {
+  const toggle = document.getElementById('sidebar-toggle');
+  const layout = document.querySelector('.layout');
+  if (!toggle || !layout) return;
+
+  let collapsed = false;
+  try {
+    collapsed = window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1';
+  } catch {
+    collapsed = false;
+  }
+  setSidebarCollapsed(collapsed, false);
+
+  toggle.addEventListener('click', () => {
+    setSidebarCollapsed(!layout.classList.contains('sidebar-collapsed'), true);
+  });
+}
+
+function numberOrDefault(c, key) {
+  const value = c[key] ?? DEFAULT[key] ?? 0;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function integerOrDefault(c, key) {
+  return Math.round(numberOrDefault(c, key));
+}
+
+function stringOrDefault(c, key, fallback = '') {
+  const text = String(c[key] ?? DEFAULT[key] ?? fallback);
+  return text.trim() ? text : fallback;
+}
+
+function cfgToProfileYaml(c = cfg) {
+  const spouse = hasSpouse(c)
+    ? {
+        name: stringOrDefault(c, 'person2Name', 'Person 2'),
+        current_age: integerOrDefault(c, 'tanyaAge'),
+        retire_at: integerOrDefault(c, 'retireTanyaAge'),
+      }
+    : null;
+
+  return {
+    people: {
+      primary: {
+        name: stringOrDefault(c, 'person1Name', 'Person 1'),
+        current_age: integerOrDefault(c, 'nathanAge'),
+        retire_at: integerOrDefault(c, 'retireNathanAge'),
+      },
+      spouse,
+    },
+    portfolio: {
+      total: numberOrDefault(c, 'portfolioTotal'),
+    },
+    income: {
+      primary_salary: numberOrDefault(c, 'nathanSalaryBase'),
+      primary_rsus_annual: numberOrDefault(c, 'nathanRsuAnnual'),
+      spouse_salary: numberOrDefault(c, 'tanyaSalaryBase'),
+      spouse_rsus_annual: numberOrDefault(c, 'tanyaRsuAnnual'),
+      rsu_vesting_years: integerOrDefault(c, 'rsuVestingYears'),
+      income_growth_real: numberOrDefault(c, 'incomeGrowthReal'),
+      effective_income_tax: numberOrDefault(c, 'effectiveIncomeTax'),
+    },
+    spending: {
+      base_annual: numberOrDefault(c, 'baseSpending'),
+      retirement_fraction: numberOrDefault(c, 'retirementSpendingFraction'),
+      growth_real: numberOrDefault(c, 'spendingGrowthReal'),
+      healthcare_annual: numberOrDefault(c, 'healthcareAnnual'),
+      medicare_age: integerOrDefault(c, 'medicareAge'),
+      floor: numberOrDefault(c, 'spendingFloor'),
+      ceiling: numberOrDefault(c, 'spendingCeiling'),
+    },
+    kids: {
+      count: integerOrDefault(c, 'numKids'),
+      first_kid_year: integerOrDefault(c, 'firstKidYear'),
+      childcare_annual: numberOrDefault(c, 'childcareAnnual'),
+      k12_annual: numberOrDefault(c, 'k12Annual'),
+      college_contribution: numberOrDefault(c, 'collegeContribution'),
+    },
+    social_security: {
+      primary_annual: numberOrDefault(c, 'ssNathanAnnual'),
+      spouse_annual: numberOrDefault(c, 'ssTanyaAnnual'),
+      claim_age: integerOrDefault(c, 'ssClaimAge'),
+      reduction_factor: numberOrDefault(c, 'ssReductionFactor'),
+    },
+    house: {
+      upgrade: Boolean(c.upgradeHouse),
+      upgrade_year: integerOrDefault(c, 'upgradeYear'),
+      upgrade_additional_cost: numberOrDefault(c, 'upgradeAdditionalCost'),
+    },
+    market: {
+      equity_return_nominal: numberOrDefault(c, 'equityReturnNominal'),
+      equity_std: numberOrDefault(c, 'equityStd'),
+      bond_return_nominal: numberOrDefault(c, 'bondReturnNominal'),
+      inflation: numberOrDefault(c, 'inflation'),
+      equity_fraction_working: numberOrDefault(c, 'equityFractionWorking'),
+      equity_fraction_retired: numberOrDefault(c, 'equityFractionRetired'),
+    },
+    simulation: {
+      method: c.simulationMethod ?? DEFAULT.simulationMethod ?? 'monte_carlo',
+      withdrawal_strategy: c.withdrawalStrategy ?? DEFAULT.withdrawalStrategy ?? 'constant_dollar',
+      withdrawal_rate: numberOrDefault(c, 'withdrawalRate'),
+      swr: numberOrDefault(c, 'swr'),
+      years: integerOrDefault(c, 'years'),
+      mc_runs: integerOrDefault(c, 'mcRuns'),
+      guardrails: {
+        upper: numberOrDefault(c, 'upperGuardrail'),
+        lower: numberOrDefault(c, 'lowerGuardrail'),
+        cut: numberOrDefault(c, 'guardrailCut'),
+      },
+      dynamic_spending: {
+        floor: numberOrDefault(c, 'dynamicSpendingFloor'),
+        ceiling: numberOrDefault(c, 'dynamicSpendingCeiling'),
+      },
+      guyton_klinger: {
+        capital_preservation: numberOrDefault(c, 'gkCapitalPreservation'),
+        prosperity: numberOrDefault(c, 'gkProsperity'),
+        adjustment: numberOrDefault(c, 'gkAdjustment'),
+        sunset_years: integerOrDefault(c, 'gkSunsetYears'),
+      },
+    },
+  };
+}
+
+function yamlPath(source, path) {
+  return path.reduce((obj, key) => (obj == null ? undefined : obj[key]), source);
+}
+
+function yamlObject(source, path) {
+  const value = yamlPath(source, path);
+  if (value == null) return undefined;
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${path.join('.')} must be a mapping`);
+  }
+  return value;
+}
+
+function yamlString(source, path, next, key) {
+  const value = yamlPath(source, path);
+  if (value == null) return;
+  next[key] = String(value);
+}
+
+function yamlNumber(source, path, next, key) {
+  const value = yamlPath(source, path);
+  if (value == null) return;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    throw new Error(`${path.join('.')} must be a number`);
+  }
+  next[key] = numeric;
+}
+
+function yamlInteger(source, path, next, key) {
+  const value = yamlPath(source, path);
+  if (value == null) return;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    throw new Error(`${path.join('.')} must be a whole number`);
+  }
+  next[key] = Math.round(numeric);
+}
+
+function yamlBoolean(source, path, next, key) {
+  const value = yamlPath(source, path);
+  if (value == null) return;
+  if (typeof value !== 'boolean') {
+    throw new Error(`${path.join('.')} must be true or false`);
+  }
+  next[key] = value;
+}
+
+function yamlEnum(source, path, next, key, allowed) {
+  const value = yamlPath(source, path);
+  if (value == null) return;
+  const normalized = String(value);
+  if (!allowed.includes(normalized)) {
+    throw new Error(`${path.join('.')} must be one of: ${allowed.join(', ')}`);
+  }
+  next[key] = normalized;
+}
+
+function cfgFromProfileYaml(doc) {
+  if (doc == null) return { ...DEFAULT };
+  if (typeof doc !== 'object' || Array.isArray(doc)) {
+    throw new Error('YAML settings must be a mapping');
+  }
+
+  yamlObject(doc, ['people']);
+  yamlObject(doc, ['people', 'primary']);
+  yamlObject(doc, ['portfolio']);
+  yamlObject(doc, ['income']);
+  yamlObject(doc, ['spending']);
+  yamlObject(doc, ['kids']);
+  yamlObject(doc, ['social_security']);
+  yamlObject(doc, ['house']);
+  yamlObject(doc, ['market']);
+  yamlObject(doc, ['simulation']);
+  yamlObject(doc, ['simulation', 'guardrails']);
+  yamlObject(doc, ['simulation', 'dynamic_spending']);
+  yamlObject(doc, ['simulation', 'guyton_klinger']);
+
+  const next = { ...DEFAULT };
+  yamlString(doc, ['people', 'primary', 'name'], next, 'person1Name');
+  yamlInteger(doc, ['people', 'primary', 'current_age'], next, 'nathanAge');
+  yamlInteger(doc, ['people', 'primary', 'retire_at'], next, 'retireNathanAge');
+
+  const people = yamlPath(doc, ['people']);
+  if (people && Object.prototype.hasOwnProperty.call(people, 'spouse')) {
+    const spouse = yamlPath(doc, ['people', 'spouse']);
+    if (spouse == null) {
+      next.hasSpouse = false;
+      next.person2Name = '';
+      next.tanyaAge = next.nathanAge;
+      next.retireTanyaAge = next.retireNathanAge;
+    } else {
+      yamlObject(doc, ['people', 'spouse']);
+      next.hasSpouse = true;
+      yamlString(doc, ['people', 'spouse', 'name'], next, 'person2Name');
+      yamlInteger(doc, ['people', 'spouse', 'current_age'], next, 'tanyaAge');
+      yamlInteger(doc, ['people', 'spouse', 'retire_at'], next, 'retireTanyaAge');
+    }
+  }
+
+  yamlNumber(doc, ['portfolio', 'total'], next, 'portfolioTotal');
+  yamlNumber(doc, ['income', 'primary_salary'], next, 'nathanSalaryBase');
+  yamlNumber(doc, ['income', 'primary_rsus_annual'], next, 'nathanRsuAnnual');
+  yamlNumber(doc, ['income', 'spouse_salary'], next, 'tanyaSalaryBase');
+  yamlNumber(doc, ['income', 'spouse_rsus_annual'], next, 'tanyaRsuAnnual');
+  yamlInteger(doc, ['income', 'rsu_vesting_years'], next, 'rsuVestingYears');
+  yamlNumber(doc, ['income', 'income_growth_real'], next, 'incomeGrowthReal');
+  yamlNumber(doc, ['income', 'effective_income_tax'], next, 'effectiveIncomeTax');
+
+  yamlNumber(doc, ['spending', 'base_annual'], next, 'baseSpending');
+  yamlNumber(doc, ['spending', 'retirement_fraction'], next, 'retirementSpendingFraction');
+  yamlNumber(doc, ['spending', 'growth_real'], next, 'spendingGrowthReal');
+  yamlNumber(doc, ['spending', 'healthcare_annual'], next, 'healthcareAnnual');
+  yamlInteger(doc, ['spending', 'medicare_age'], next, 'medicareAge');
+  yamlNumber(doc, ['spending', 'floor'], next, 'spendingFloor');
+  yamlNumber(doc, ['spending', 'ceiling'], next, 'spendingCeiling');
+
+  yamlInteger(doc, ['kids', 'count'], next, 'numKids');
+  yamlInteger(doc, ['kids', 'first_kid_year'], next, 'firstKidYear');
+  yamlNumber(doc, ['kids', 'childcare_annual'], next, 'childcareAnnual');
+  yamlNumber(doc, ['kids', 'k12_annual'], next, 'k12Annual');
+  yamlNumber(doc, ['kids', 'college_contribution'], next, 'collegeContribution');
+
+  yamlNumber(doc, ['social_security', 'primary_annual'], next, 'ssNathanAnnual');
+  yamlNumber(doc, ['social_security', 'spouse_annual'], next, 'ssTanyaAnnual');
+  yamlInteger(doc, ['social_security', 'claim_age'], next, 'ssClaimAge');
+  yamlNumber(doc, ['social_security', 'reduction_factor'], next, 'ssReductionFactor');
+
+  yamlBoolean(doc, ['house', 'upgrade'], next, 'upgradeHouse');
+  yamlInteger(doc, ['house', 'upgrade_year'], next, 'upgradeYear');
+  yamlNumber(doc, ['house', 'upgrade_additional_cost'], next, 'upgradeAdditionalCost');
+
+  yamlNumber(doc, ['market', 'equity_return_nominal'], next, 'equityReturnNominal');
+  yamlNumber(doc, ['market', 'equity_std'], next, 'equityStd');
+  yamlNumber(doc, ['market', 'bond_return_nominal'], next, 'bondReturnNominal');
+  yamlNumber(doc, ['market', 'inflation'], next, 'inflation');
+  yamlNumber(doc, ['market', 'equity_fraction_working'], next, 'equityFractionWorking');
+  yamlNumber(doc, ['market', 'equity_fraction_retired'], next, 'equityFractionRetired');
+
+  yamlEnum(doc, ['simulation', 'method'], next, 'simulationMethod', SIMULATION_METHODS);
+  yamlEnum(doc, ['simulation', 'withdrawal_strategy'], next, 'withdrawalStrategy', WITHDRAWAL_STRATEGIES);
+  yamlNumber(doc, ['simulation', 'withdrawal_rate'], next, 'withdrawalRate');
+  yamlNumber(doc, ['simulation', 'swr'], next, 'swr');
+  yamlInteger(doc, ['simulation', 'years'], next, 'years');
+  yamlInteger(doc, ['simulation', 'mc_runs'], next, 'mcRuns');
+  yamlNumber(doc, ['simulation', 'guardrails', 'upper'], next, 'upperGuardrail');
+  yamlNumber(doc, ['simulation', 'guardrails', 'lower'], next, 'lowerGuardrail');
+  yamlNumber(doc, ['simulation', 'guardrails', 'cut'], next, 'guardrailCut');
+  yamlNumber(doc, ['simulation', 'dynamic_spending', 'floor'], next, 'dynamicSpendingFloor');
+  yamlNumber(doc, ['simulation', 'dynamic_spending', 'ceiling'], next, 'dynamicSpendingCeiling');
+  yamlNumber(doc, ['simulation', 'guyton_klinger', 'capital_preservation'], next, 'gkCapitalPreservation');
+  yamlNumber(doc, ['simulation', 'guyton_klinger', 'prosperity'], next, 'gkProsperity');
+  yamlNumber(doc, ['simulation', 'guyton_klinger', 'adjustment'], next, 'gkAdjustment');
+  yamlInteger(doc, ['simulation', 'guyton_klinger', 'sunset_years'], next, 'gkSunsetYears');
+  return next;
+}
+
+function setYamlStatus(message, state = '') {
+  const status = document.getElementById('yamlStatus');
+  if (!status) return;
+  status.textContent = message;
+  status.className = state ? `yaml-status ${state}` : 'yaml-status';
+}
+
+function syncYamlFromCfg(message = '') {
+  const textarea = document.getElementById('yamlSettings');
+  if (!textarea) return;
+  if (!window.jsyaml?.dump) {
+    setYamlStatus('YAML editor unavailable', 'error');
+    return;
+  }
+  textarea.value = window.jsyaml.dump(cfgToProfileYaml(cfg), {
+    noRefs: true,
+    sortKeys: false,
+    lineWidth: 120,
+  });
+  yamlDirty = false;
+  setYamlStatus(message, message ? 'ok' : '');
+}
+
+function applyYamlSettings() {
+  const textarea = document.getElementById('yamlSettings');
+  if (!textarea) return;
+  try {
+    if (!window.jsyaml?.load) {
+      throw new Error('YAML parser unavailable');
+    }
+    const parsed = window.jsyaml.load(textarea.value);
+    cfg = cfgFromProfileYaml(parsed);
+    normalizeConfigBounds();
+    scenarioCache = null;
+    syncUIFromCfg();
+    updateScenarioButtonStates();
+    scheduleRender();
+    setYamlStatus('Applied YAML', 'ok');
+  } catch (err) {
+    setYamlStatus(err?.message ?? String(err), 'error');
+  }
+}
+
+async function copyYamlSettings() {
+  const textarea = document.getElementById('yamlSettings');
+  if (!textarea) return;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(textarea.value);
+    } else {
+      textarea.select();
+      document.execCommand('copy');
+    }
+    setYamlStatus('Copied YAML', 'ok');
+  } catch {
+    setYamlStatus('Copy failed', 'error');
+  }
+}
+
+function bindYamlEditor() {
+  document.getElementById('yamlSettings')?.addEventListener('input', () => {
+    yamlDirty = true;
+    setYamlStatus('YAML edits not applied', 'dirty');
+  });
+  document.getElementById('applyYaml')?.addEventListener('click', applyYamlSettings);
+  document.getElementById('resetYaml')?.addEventListener('click', () => {
+    syncYamlFromCfg('Reset from controls');
+  });
+  document.getElementById('copyYaml')?.addEventListener('click', () => {
+    copyYamlSettings();
+  });
+}
 
 function bindInputs() {
   RANGE_FIELDS.forEach(field => {
@@ -1367,35 +2455,46 @@ function bindInputs() {
       const val = parseFloat(el.value);
       cfg[field] = val;
       if (valEl) valEl.textContent = FORMATS[field]?.(val) ?? val;
+      normalizeConfigBounds();
+      syncUIFromCfg();
       updateRealReturnNote();
-      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-      scenarioCache = null;
+      markCustom();
       scheduleRender();
     });
   });
 
-  // Checkbox — flexible spending
-  const flexEl = document.getElementById('flexibleSpending');
-  flexEl.addEventListener('change', () => {
-    cfg.flexibleSpending = flexEl.checked;
-    document.getElementById('guardrails-controls').classList.toggle('dim', !flexEl.checked);
-    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-    scheduleRender();
+  TEXT_FIELDS.forEach(field => {
+    const el = document.getElementById(field);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      cfg[field] = el.value;
+      updateDisplayLabels();
+      syncYamlFromCfg();
+      markCustom();
+      scheduleRender();
+    });
   });
 
-  // Checkbox — historical returns
-  const histEl = document.getElementById('useHistoricalReturns');
-  histEl.addEventListener('change', () => {
-    cfg.useHistoricalReturns = histEl.checked;
-    document.getElementById('hist-note').style.display = histEl.checked ? 'block' : 'none';
-    document.getElementById('mc-sliders').style.opacity = histEl.checked ? '0.4' : '1';
-    document.getElementById('mc-sliders').style.pointerEvents = histEl.checked ? 'none' : '';
-    document.getElementById('real-return-note').style.display = histEl.checked ? 'none' : 'block';
-    document.getElementById('mc-badge').textContent =
-      histEl.checked ? `${cfg.mcRuns} historical bootstrap runs` : `${cfg.mcRuns} Monte Carlo runs`;
-    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-    scenarioCache = null;
-    scheduleRender();
+  SELECT_FIELDS.forEach(field => {
+    const el = document.getElementById(field);
+    if (!el) return;
+    el.addEventListener('change', () => {
+      cfg[field] = el.value;
+      syncUIFromCfg();
+      markCustom();
+      scheduleRender();
+    });
+  });
+
+  CHECKBOX_FIELDS.forEach(field => {
+    const el = document.getElementById(field);
+    if (!el) return;
+    el.addEventListener('change', () => {
+      cfg[field] = el.checked;
+      syncUIFromCfg();
+      markCustom();
+      scheduleRender();
+    });
   });
 
   // Section collapse toggles
@@ -1409,6 +2508,8 @@ function bindInputs() {
       hdr.classList.toggle('open', !open);
     });
   });
+
+  applyTooltips();
 }
 
 function updateRealReturnNote() {
@@ -1420,7 +2521,80 @@ function updateRealReturnNote() {
   if (bdEl) bdEl.textContent = `${(bdReal * 100).toFixed(1)}%`;
 }
 
+function normalizeConfigBounds() {
+  cfg.nathanAge = Math.round(cfg.nathanAge ?? DEFAULT.nathanAge);
+  cfg.tanyaAge = Math.round(cfg.tanyaAge ?? DEFAULT.tanyaAge ?? cfg.nathanAge);
+  cfg.retireNathanAge = Math.max(cfg.nathanAge, Math.round(cfg.retireNathanAge ?? DEFAULT.retireNathanAge));
+  cfg.retireTanyaAge = Math.max(cfg.tanyaAge, Math.round(cfg.retireTanyaAge ?? DEFAULT.retireTanyaAge ?? cfg.retireNathanAge));
+  cfg.years = Math.max(1, Math.round(cfg.years ?? DEFAULT.years));
+  cfg.mcRuns = Math.max(1, Math.round(cfg.mcRuns ?? DEFAULT.mcRuns));
+  if (!hasSpouse(cfg)) {
+    cfg.tanyaAge = cfg.nathanAge;
+    cfg.retireTanyaAge = cfg.retireNathanAge;
+  }
+}
+
+function updatePanelState() {
+  const historical = cfg.simulationMethod === 'historical_bootstrap';
+  const deterministic = cfg.simulationMethod === 'deterministic';
+  const guardrails = cfg.withdrawalStrategy === 'guardrails';
+  const dynamic = cfg.withdrawalStrategy === 'vanguard_dynamic';
+  const guytonKlinger = cfg.withdrawalStrategy === 'guyton_klinger';
+
+  document.getElementById('hist-note').style.display = historical ? 'block' : 'none';
+  document.getElementById('mc-sliders').style.opacity = historical ? '0.4' : '1';
+  document.getElementById('mc-sliders').style.pointerEvents = historical ? 'none' : '';
+  document.getElementById('real-return-note').style.display = historical ? 'none' : 'block';
+  document.getElementById('guardrails-controls').classList.toggle('dim', !guardrails);
+  document.getElementById('dynamic-spending-controls').classList.toggle('dim', !dynamic);
+  document.getElementById('guyton-klinger-controls').classList.toggle('dim', !guytonKlinger);
+  document.getElementById('housing-controls').classList.toggle('dim', !cfg.upgradeHouse);
+  document.getElementById('mc-runs-group').style.opacity = deterministic ? '0.5' : '1';
+
+  document.getElementById('mc-badge').textContent =
+    deterministic ? `${methodLabel(cfg.simulationMethod)} path` : `${cfg.mcRuns} ${methodLabel(cfg.simulationMethod)} runs`;
+}
+
+function updateDisplayLabels() {
+  const names = hasSpouse(cfg) ? `${primaryName()} & ${spouseName()}` : primaryName();
+  document.title = `Retirement Simulator · ${names}`;
+
+  const sub = document.getElementById('header-sub');
+  if (sub) sub.textContent = `${names} · ${methodLabel(cfg.simulationMethod)} · ${strategyLabel(cfg.withdrawalStrategy)}`;
+
+  document.querySelectorAll('[data-person1]').forEach(el => { el.textContent = primaryName(); });
+  document.querySelectorAll('[data-person2]').forEach(el => { el.textContent = spouseName(); });
+  document.querySelectorAll('[data-spouse-only]').forEach(el => {
+    el.style.display = hasSpouse(cfg) ? '' : 'none';
+  });
+
+  const survivalSub = document.getElementById('m-survival-sub');
+  if (survivalSub) survivalSub.textContent = `to ${primaryName()} age ${cfg.nathanAge + cfg.years}`;
+  const fireSub = document.getElementById('m-fire-sub');
+  if (fireSub) fireSub.textContent = `${primaryName()}'s age when funded`;
+  const distSub = document.getElementById('dist-chart-sub');
+  if (distSub) distSub.textContent = `${primaryName()} age ${cfg.nathanAge + cfg.years} · all outcomes`;
+  const portSub = document.getElementById('portfolio-chart-sub');
+  if (portSub) {
+    portSub.textContent = cfg.simulationMethod === 'deterministic'
+      ? 'Expected-return path'
+      : `${methodLabel(cfg.simulationMethod)} percentile bands · median deterministic path highlighted`;
+  }
+
+  const retireN = document.getElementById('retireNathanAge');
+  if (retireN) {
+    retireN.min = cfg.nathanAge;
+    retireN.max = Math.max(85, cfg.retireNathanAge);
+  }
+  const retireT = document.getElementById('retireTanyaAge');
+  if (retireT) {
+    retireT.min = cfg.tanyaAge;
+    retireT.max = Math.max(85, cfg.retireTanyaAge);
+  }
+}
+
 function syncUIFromCfg() {
+  normalizeConfigBounds();
   RANGE_FIELDS.forEach(field => {
     const el = document.getElementById(field);
     if (!el || el.type !== 'range') return;
@@ -1428,47 +2602,44 @@ function syncUIFromCfg() {
     const valEl = document.getElementById('v-' + field);
     if (valEl) valEl.textContent = FORMATS[field]?.(cfg[field]) ?? cfg[field];
   });
-  const flexEl = document.getElementById('flexibleSpending');
-  flexEl.checked = cfg.flexibleSpending ?? false;
-  document.getElementById('guardrails-controls').classList.toggle('dim', !cfg.flexibleSpending);
-
-  const histEl = document.getElementById('useHistoricalReturns');
-  const hist = cfg.useHistoricalReturns ?? false;
-  histEl.checked = hist;
-  document.getElementById('hist-note').style.display = hist ? 'block' : 'none';
-  document.getElementById('mc-sliders').style.opacity = hist ? '0.4' : '1';
-  document.getElementById('mc-sliders').style.pointerEvents = hist ? 'none' : '';
-  document.getElementById('real-return-note').style.display = hist ? 'none' : 'block';
-  document.getElementById('mc-badge').textContent =
-    hist ? `${cfg.mcRuns} historical bootstrap runs` : `${cfg.mcRuns} Monte Carlo runs`;
-
+  TEXT_FIELDS.forEach(field => {
+    const el = document.getElementById(field);
+    if (el) el.value = cfg[field] ?? DEFAULT[field] ?? '';
+  });
+  SELECT_FIELDS.forEach(field => {
+    const el = document.getElementById(field);
+    if (el) el.value = cfg[field] ?? DEFAULT[field];
+  });
+  CHECKBOX_FIELDS.forEach(field => {
+    const el = document.getElementById(field);
+    if (el) el.checked = Boolean(cfg[field]);
+  });
+  updatePanelState();
+  updateDisplayLabels();
   updateRealReturnNote();
+  syncYamlFromCfg();
+}
+
+function applyTooltips() {
+  Object.entries(TOOLTIPS).forEach(([id, text]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const target = el.closest('.yaml-btn, .yaml-textarea, .control-group, .toggle-row, .metric-card, .chart-card') ?? el;
+    target.dataset.tooltip = text;
+    target.title = text;
+    if (target !== el) el.title = text;
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Meta — apply person names and hide spouse controls from MONARCH_META
+// Meta defaults
 // ─────────────────────────────────────────────────────────────────────────────
-function applyMeta() {
-  const m = MONARCH_META;
-  document.title = m.hasSpouse
-    ? `Retirement Simulator · ${m.person1Name} & ${m.person2Name}`
-    : `Retirement Simulator · ${m.person1Name}`;
-  const sub = document.getElementById('header-sub');
-  if (sub) sub.textContent = m.hasSpouse
-    ? `${m.person1Name} & ${m.person2Name} · Real (inflation-adjusted) dollars`
-    : `${m.person1Name} · Real (inflation-adjusted) dollars`;
-  document.querySelectorAll('[data-person1]').forEach(el => { el.textContent = m.person1Name; });
-  document.querySelectorAll('[data-person2]').forEach(el => { el.textContent = m.person2Name; });
-  const survivalSub = document.getElementById('m-survival-sub');
-  if (survivalSub) survivalSub.textContent = `to ${m.person1Name} age ${DEFAULT.nathanAge + DEFAULT.years}`;
-  const fireSub = document.getElementById('m-fire-sub');
-  if (fireSub) fireSub.textContent = `${m.person1Name}'s age when funded`;
-  const retireN = document.getElementById('retireNathanAge');
-  if (retireN) retireN.min = m.person1CurrentAge;
-  const retireT = document.getElementById('retireTanyaAge');
-  if (retireT) retireT.min = m.person2CurrentAge ?? m.person1CurrentAge;
-  if (!m.hasSpouse) {
-    document.querySelectorAll('[data-spouse-only]').forEach(el => { el.style.display = 'none'; });
+function applyMetaDefaults() {
+  cfg.person1Name = cfg.person1Name ?? MONARCH_META.person1Name ?? 'Person 1';
+  cfg.person2Name = cfg.person2Name ?? MONARCH_META.person2Name ?? '';
+  cfg.hasSpouse = cfg.hasSpouse ?? MONARCH_META.hasSpouse ?? false;
+  if (!hasSpouse(cfg)) {
+    cfg.person2Name = '';
   }
 }
 
@@ -1476,8 +2647,10 @@ function applyMeta() {
 // Boot
 // ─────────────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  applyMeta();
+  applyMetaDefaults();
   renderPresets();
+  bindSidebarToggle();
+  bindYamlEditor();
   bindInputs();
   syncUIFromCfg();
   scheduleRender();

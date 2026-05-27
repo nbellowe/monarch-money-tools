@@ -50,7 +50,16 @@ def test_load_profile_uses_defaults_for_missing_sections() -> None:
     profile = load_profile(FIXTURES / "profile.yaml")
     assert profile.income.effective_income_tax == 0.28
     assert profile.market.inflation == 0.03
+    assert profile.simulation.method == "monte_carlo"
+    assert profile.simulation.withdrawal_strategy == "constant_dollar"
+    assert profile.simulation.withdrawal_rate == 0.04
     assert profile.simulation.swr == 0.04
+    assert profile.simulation.dynamic_spending.floor == -0.025
+    assert profile.simulation.dynamic_spending.ceiling == 0.05
+    assert profile.simulation.guyton_klinger.capital_preservation == 1.20
+    assert profile.simulation.guyton_klinger.prosperity == 0.80
+    assert profile.simulation.guyton_klinger.adjustment == 0.10
+    assert profile.simulation.guyton_klinger.sunset_years == 15
     assert profile.kids.count == 0
     assert profile.house.upgrade is False
 

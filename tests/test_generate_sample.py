@@ -36,3 +36,23 @@ def test_generate_sample_html_produces_valid_output():
 
     # Chart.js CDN script tag present
     assert "chart.js" in html.lower()
+    assert "js-yaml" in html.lower()
+
+    # The generated UI exposes the full starter profile surface.
+    assert 'id="simulationMethod"' in html
+    assert 'id="withdrawalStrategy"' in html
+    assert 'id="yamlSettings"' in html
+    assert 'id="applyYaml"' in html
+    assert "cfgToProfileYaml" in html
+    assert "cfgFromProfileYaml" in html
+    assert 'id="hasSpouse"' in html
+    assert 'value="guyton_klinger"' in html
+    assert 'id="gkCapitalPreservation"' in html
+    assert "Return model" in html
+    assert "Spending level" in html
+    assert "Retirement age" in html
+    assert 'id="spendingCeiling"' in html
+    assert 'id="upgradeHouse"' in html
+    assert 'id="sidebar-toggle"' in html
+    assert "sidebar-collapsed" in html
+    assert "const TOOLTIPS" in html

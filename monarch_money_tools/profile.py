@@ -45,7 +45,6 @@ class SpendingConfig(ProfileBaseModel):
     growth_real: float = 0.005
     healthcare_annual: float = 15_000
     medicare_age: int = 65
-    flexible: bool = False
     floor: float = 0.75
     ceiling: float = 1.20
 
@@ -77,6 +76,18 @@ class GuardrailsConfig(ProfileBaseModel):
     cut: float = 0.10
 
 
+class DynamicSpendingConfig(ProfileBaseModel):
+    floor: float = -0.025
+    ceiling: float = 0.05
+
+
+class GuytonKlingerConfig(ProfileBaseModel):
+    capital_preservation: float = 1.20
+    prosperity: float = 0.80
+    adjustment: float = 0.10
+    sunset_years: int = 15
+
+
 class MarketConfig(ProfileBaseModel):
     equity_return_nominal: float = 0.09
     equity_std: float = 0.17
@@ -84,14 +95,18 @@ class MarketConfig(ProfileBaseModel):
     inflation: float = 0.03
     equity_fraction_working: float = 0.85
     equity_fraction_retired: float = 0.60
-    use_historical_returns: bool = False
 
 
 class SimulationConfig(ProfileBaseModel):
+    method: str = "monte_carlo"
+    withdrawal_strategy: str = "constant_dollar"
+    withdrawal_rate: float = 0.04
     swr: float = 0.04
     years: int = 70
     mc_runs: int = 300
     guardrails: GuardrailsConfig = Field(default_factory=GuardrailsConfig)
+    dynamic_spending: DynamicSpendingConfig = Field(default_factory=DynamicSpendingConfig)
+    guyton_klinger: GuytonKlingerConfig = Field(default_factory=GuytonKlingerConfig)
 
 
 class IncomePatternConfig(ProfileBaseModel):
@@ -174,7 +189,6 @@ spending:
   growth_real: 0.005        # Annual real spending growth rate
   healthcare_annual: 15000  # Annual pre-Medicare healthcare cost ($)
   medicare_age: 65          # Age Medicare begins
-  flexible: false           # Enable guardrail-based flexible spending
   floor: 0.75               # Minimum spending as fraction of baseline
   ceiling: 1.20             # Maximum spending as fraction of baseline
 
@@ -203,21 +217,33 @@ market:
   inflation: 0.03               # Expected annual inflation rate
   equity_fraction_working: 0.85 # Equity allocation during working years
   equity_fraction_retired: 0.60 # Equity allocation in retirement
-  use_historical_returns: false # Use bootstrapped historical returns
 
 simulation:
+  method: monte_carlo  # monte_carlo, historical_bootstrap, or deterministic
+  withdrawal_strategy: constant_dollar  # e.g. guardrails, one_over_n, vanguard_dynamic
+  withdrawal_rate: 0.04 # Portfolio withdrawal target for variable strategies
   swr: 0.04     # Safe withdrawal rate (planning threshold, not actual spend)
   years: 70     # Simulation horizon in years
   mc_runs: 300  # Monte Carlo iterations
   guardrails:
-    upper: 0.05   # Withdraw rate above this can increase spend
-    lower: 0.03   # Withdraw rate below this cuts spend by `cut`
+    upper: 0.05   # Withdraw rate above this cuts spend
+    lower: 0.03   # Withdraw rate below this can increase spend
     cut: 0.10     # Spending cut when lower guardrail triggers
+  dynamic_spending:
+    floor: -0.025  # Max annual cut for Vanguard-style dynamic spending
+    ceiling: 0.05  # Max annual raise for Vanguard-style dynamic spending
+  guyton_klinger:
+    capital_preservation: 1.20  # Cut if withdrawal rate > 120% of initial rate
+    prosperity: 0.80            # Raise if withdrawal rate < 80% of initial rate
+    adjustment: 0.10            # Raise/cut size when a decision rule triggers
+    sunset_years: 15            # Disable capital preservation in final N years
 """
 
 
 __all__ = [
     "CashflowConfig",
+    "DynamicSpendingConfig",
+    "GuytonKlingerConfig",
     "HouseConfig",
     "IncomeConfig",
     "IncomePatternConfig",
