@@ -55,15 +55,38 @@ def test_build_review_plan_recategorizes_unreviewed_transaction(
 
 def test_apply_review_plan_accepts_updates_directly(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
-    updates = [{"transactionId": "t1", "merchantName": "Coffee", "categoryId": "c1"}]
-    apply_patch = patch(
-        "monarch_money_tools.review.apply_transaction_updates", new_callable=AsyncMock
-    )
-    with apply_patch as mock_apply, patch("monarch_money_tools.review.write_json"):
+    mini_bundle = {
+        "transactions": [{"id": "t1", "categoryName": "Uncategorized", "needsReview": True}],
+        "categories": [
+            {"id": "c0", "name": "Uncategorized"},
+            {"id": "c1", "name": "Dining"},
+        ],
+    }
+    updates = [
+        {
+            "transactionId": "t1",
+            "merchantName": "Coffee",
+            "categoryId": "c1",
+            "suggestedCategory": "Dining",
+            "setNeedsReview": False,
+        }
+    ]
+    with (
+        patch(
+            "monarch_money_tools.review.apply_transaction_updates", new_callable=AsyncMock
+        ) as mock_apply,
+        patch("monarch_money_tools.review.load_bundle", return_value=mini_bundle),
+        patch("monarch_money_tools.review.write_json"),
+    ):
         mock_apply.return_value = [{"id": "t1"}]
         result = asyncio.run(apply_review_plan(updates))
+
     mock_apply.assert_called_once_with(updates)
     assert result["requestedCount"] == 1
+    # Receipt is written under data/review/revert/
+    assert (tmp_path / "data" / "review" / "revert").exists()
+    receipts = list((tmp_path / "data" / "review" / "revert").glob("revert-*.json"))
+    assert len(receipts) == 1
 
 
 def test_apply_clear_review_plan_accepts_updates_directly(tmp_path, monkeypatch) -> None:
