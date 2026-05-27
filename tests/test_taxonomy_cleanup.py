@@ -4,6 +4,9 @@ import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+from typer.testing import CliRunner
+
+from monarch_money_tools.cmd.cleanup import cleanup_app
 from monarch_money_tools.paths import canonical_taxonomy_file
 from monarch_money_tools.storage import write_json
 from monarch_money_tools.taxonomy_cleanup import (
@@ -161,11 +164,6 @@ def test_apply_cleanup_plan_emits_receipt(tmp_path, monkeypatch) -> None:
     assert len(receipts) == 1
 
 
-from typer.testing import CliRunner
-
-from monarch_money_tools.cmd.cleanup import cleanup_app
-
-
 def test_cleanup_revert_no_receipt_exits_cleanly(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
@@ -186,8 +184,16 @@ def test_cleanup_revert_dry_run_shows_table(tmp_path, monkeypatch) -> None:
                 "type": "update_transaction",
                 "entityId": "txn-2",
                 "merchantName": "Target",
-                "before": {"categoryId": "cat-4", "categoryName": "Misc Shopping", "needsReview": False},
-                "after": {"categoryId": "cat-5", "categoryName": "Shopping", "needsReview": False},
+                "before": {
+                    "categoryId": "cat-4",
+                    "categoryName": "Misc Shopping",
+                    "needsReview": False,
+                },
+                "after": {
+                    "categoryId": "cat-5",
+                    "categoryName": "Shopping",
+                    "needsReview": False,
+                },
             }
         ],
     )

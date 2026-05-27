@@ -4,6 +4,9 @@ import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+from typer.testing import CliRunner
+
+from monarch_money_tools.cmd.review import review_app
 from monarch_money_tools.csv_adapter import import_transactions_from_csv
 from monarch_money_tools.monarch_api import clean_cookie_header, csrf_from_cookie
 from monarch_money_tools.normalizer import (
@@ -127,11 +130,6 @@ def test_cookie_helpers_extract_browser_session_bits() -> None:
     assert csrf_from_cookie(cookie) == "token 123"
 
 
-from typer.testing import CliRunner
-
-from monarch_money_tools.cmd.review import review_app
-
-
 def test_review_revert_no_receipt_exits_cleanly(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
@@ -152,8 +150,16 @@ def test_review_revert_dry_run_shows_table(tmp_path, monkeypatch) -> None:
                 "type": "update_transaction",
                 "entityId": "txn-1",
                 "merchantName": "Starbucks",
-                "before": {"categoryId": "cat-0", "categoryName": "Uncategorized", "needsReview": True},
-                "after": {"categoryId": "cat-1", "categoryName": "Coffee Shops", "needsReview": False},
+                "before": {
+                    "categoryId": "cat-0",
+                    "categoryName": "Uncategorized",
+                    "needsReview": True,
+                },
+                "after": {
+                    "categoryId": "cat-1",
+                    "categoryName": "Coffee Shops",
+                    "needsReview": False,
+                },
             }
         ],
     )

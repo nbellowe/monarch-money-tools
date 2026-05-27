@@ -1,9 +1,19 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
-from monarch_money_tools.rules import build_apply_plan, build_push_rule_payload, match_transactions
-from monarch_money_tools.storage import write_json
+from typer.testing import CliRunner
+
+from monarch_money_tools.cmd.rules import rules_app
+from monarch_money_tools.rules import (
+    apply_rules_plan,
+    build_apply_plan,
+    build_push_rule_payload,
+    match_transactions,
+)
+from monarch_money_tools.storage import read_json, write_json
 
 
 def test_build_apply_plan_filters_to_requested_rule(tmp_path: Path, monkeypatch) -> None:
@@ -122,13 +132,7 @@ def test_build_push_rule_payload_no_category() -> None:
     assert payload["reviewStatusAction"] == "reviewed"
 
 
-import asyncio
-from unittest.mock import AsyncMock, patch
-
-
 def test_apply_rules_plan_emits_receipt(tmp_path, monkeypatch) -> None:
-    from monarch_money_tools.rules import apply_rules_plan
-
     monkeypatch.chdir(tmp_path)
     mini_bundle = {
         "transactions": [{"id": "t5", "categoryName": "Uncategorized", "needsReview": True}],
@@ -163,12 +167,6 @@ def test_apply_rules_plan_emits_receipt(tmp_path, monkeypatch) -> None:
     assert result["appliedCount"] == 1
     receipts = list((tmp_path / "data" / "rules" / "revert").glob("revert-*.json"))
     assert len(receipts) == 1
-
-
-from typer.testing import CliRunner
-
-from monarch_money_tools.cmd.rules import rules_app
-from monarch_money_tools.storage import read_json
 
 
 def test_push_rule_emits_create_rule_receipt(tmp_path, monkeypatch) -> None:
@@ -223,8 +221,16 @@ def test_rules_revert_dry_run_shows_table(tmp_path, monkeypatch) -> None:
                 "type": "update_transaction",
                 "entityId": "txn-3",
                 "merchantName": "Chipotle",
-                "before": {"categoryId": "cat-0", "categoryName": "Uncategorized", "needsReview": True},
-                "after": {"categoryId": "cat-6", "categoryName": "Dining", "needsReview": False},
+                "before": {
+                    "categoryId": "cat-0",
+                    "categoryName": "Uncategorized",
+                    "needsReview": True,
+                },
+                "after": {
+                    "categoryId": "cat-6",
+                    "categoryName": "Dining",
+                    "needsReview": False,
+                },
             }
         ],
     )

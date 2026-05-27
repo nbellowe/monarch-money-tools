@@ -8,13 +8,13 @@ from rich.table import Table
 from ..monarch_api import delete_monarch_rule, fetch_transaction_rules
 from ..paths import rules_revert_dir
 from ..revert import build_revert_receipt, execute_revert, find_latest_receipt, write_revert_receipt
-from ..storage import read_json
 from ..rules import (
     build_apply_plan,
     build_push_rule_payload,
     build_rule_suggestions,
     load_rule_suggestions,
 )
+from ..storage import read_json
 from ._utils import _format_amount, console, print_dry_run_table, run_async
 
 rules_app = typer.Typer(help="Rule suggestion and Monarch rule commands.", no_args_is_help=True)
@@ -321,7 +321,8 @@ def revert_rules_command(
     receipt_path = Path(receipt) if receipt else find_latest_receipt(rules_revert_dir())
     if not receipt_path:
         console.print(
-            "[red]No revert receipt found.[/] Run `monarch rules apply` or `monarch rules push` first."
+            "[red]No revert receipt found.[/] "
+            "Run `monarch rules apply` or `monarch rules push` first."
         )
         raise typer.Exit(1)
 

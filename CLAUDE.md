@@ -12,7 +12,7 @@ uv run ruff format .   # format
 uv run monarch doctor  # check local setup
 ```
 
-Tests are fixture-based and run without live credentials. All 15 tests should pass before committing.
+Tests are fixture-based and run without live credentials. All tests should pass before committing.
 
 ## Architecture
 
@@ -31,6 +31,7 @@ monarch_money_tools/
   llm_review.py    — LLM-assisted categorization (Anthropic Claude)
   rules.py         — local rule suggestions, apply to Monarch
   taxonomy_cleanup.py — taxonomy migration + merchant consistency cleanup
+  revert.py        — receipt helpers and execute_revert dispatcher (plan/apply/revert pattern)
   backup.py        — pre-operation backup of data/ and reports/
   storage.py       — read_json / write_json helpers
   paths.py         — all data directory paths (data_dir(), reports_latest_dir(), etc.)
@@ -56,6 +57,8 @@ CSV export  →  normalizer  →  data/normalized/latest/bundle.json
 ## Key Invariants
 
 **Preview before mutation.** Every write-back generates a plan file first (`data/review/latest/`, `data/rules/latest/`, `data/cleanup/latest/`). The user reviews, then applies with `--yes` or an explicit apply command. Never batch-apply without a human-readable diff step.
+
+**Plan / Apply / Revert.** Every mutation follows plan → apply → revert. `plan` writes a human-readable plan file. `apply` reads the plan, calls the API, and writes a timestamped revert receipt at `data/<group>/revert/`. `revert` reads the latest receipt and restores the before-state. See `docs/patterns/plan-apply-revert.md`.
 
 **CSV-first.** All analysis commands work from `data/normalized/latest/bundle.json`. API access (`monarch pull`) is optional — users can always drop a CSV from the Monarch UI and run `monarch import`.
 

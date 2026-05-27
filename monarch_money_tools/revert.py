@@ -19,8 +19,7 @@ def snapshot_transaction_before(txn_id: str, bundle: JsonObject) -> JsonObject:
     will skip that operation with a warning).
     """
     cat_by_name: dict[str, str] = {
-        str(c.get("name", "")): str(c.get("id", ""))
-        for c in (bundle.get("categories") or [])
+        str(c.get("name", "")): str(c.get("id", "")) for c in (bundle.get("categories") or [])
     }
     txn = next(
         (t for t in (bundle.get("transactions") or []) if str(t.get("id", "")) == str(txn_id)),
@@ -122,5 +121,6 @@ async def _invert_operation(op: JsonObject) -> bool:
             return True
         case _:
             from rich.console import Console
+
             Console().print(f"[yellow]Unknown operation type '{op_type}', skipping.[/]")
             return False

@@ -69,7 +69,6 @@ def test_load_decisions_returns_empty_when_no_file(
 def test_apply_cleanup_respects_decision_log(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import asyncio
     from unittest.mock import AsyncMock
 
     monkeypatch.chdir(tmp_path)
@@ -90,7 +89,12 @@ def test_apply_cleanup_respects_decision_log(
     }
 
     captured_updates = []
-    mock_apply = AsyncMock(side_effect=lambda updates: (captured_updates.extend(updates) or updates))
+
+    def _capture(updates):  # type: ignore[no-untyped-def]
+        captured_updates.extend(updates)
+        return updates
+
+    mock_apply = AsyncMock(side_effect=_capture)
 
     monkeypatch.setattr(
         "monarch_money_tools.taxonomy_cleanup.apply_transaction_updates",
