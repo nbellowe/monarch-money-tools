@@ -38,47 +38,10 @@ def init_profile_command(
     dest.write_text(PROFILE_TEMPLATE)
     console.print(f"[green]Created:[/] {dest}")
     console.print(
-        "[cyan]Edit it with your details, then run `monarch retire` to generate your simulation.[/]"
+        "[cyan]Edit it with your details, then visit "
+        "https://nbellowe.github.io/retirement-simulator "
+        "and drag in your profile.[/]"
     )
-
-
-def retire_command(
-    profile_path: Annotated[
-        Path | None,
-        typer.Option("--profile", help="Path to profile.yaml (default: search cwd)."),
-    ] = None,
-    output: Annotated[
-        Path | None,
-        typer.Option(
-            "--output", help="Output HTML path (default: reports/retirement/simulation.html)."
-        ),
-    ] = None,
-    open_browser: Annotated[
-        bool,
-        typer.Option("--open", help="Open the generated HTML in your default browser."),
-    ] = False,
-) -> None:
-    """Generate a personalized retirement simulation HTML from profile.yaml."""
-    import webbrowser
-
-    from ..paths import retirement_dir
-    from ..profile import ProfileNotFoundError, load_profile
-    from ..retire import generate_retirement_html
-
-    try:
-        profile = load_profile(profile_path)
-    except ProfileNotFoundError as e:
-        console.print(f"[red]{e}[/]")
-        raise typer.Exit(1) from None
-
-    out_path = output or (retirement_dir() / "simulation.html")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    html = generate_retirement_html(profile)
-    out_path.write_text(html)
-    console.print(f"[green]Retirement simulation written:[/] {out_path}")
-
-    if open_browser:
-        webbrowser.open(f"file://{out_path.absolute()}")
 
 
 def portfolio_command(

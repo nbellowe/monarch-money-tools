@@ -4,7 +4,7 @@ import typer
 
 from .cmd.cleanup import apply_cleanup_command, cleanup_app
 from .cmd.data import data_app, doctor_command, import_command, pull_command, run_command
-from .cmd.misc import init_command, init_profile_command, portfolio_command, retire_command
+from .cmd.misc import init_command, init_profile_command, portfolio_command
 from .cmd.review import (
     apply_clear_reviews_command,
     apply_llm_review_command,
@@ -30,7 +30,6 @@ app.command("import")(import_command)
 app.command("run")(run_command)
 app.command("pull")(pull_command)
 app.command("init")(init_command)
-app.command("retire")(retire_command)
 app.command("init-profile")(init_profile_command)
 app.command("portfolio")(portfolio_command)
 
