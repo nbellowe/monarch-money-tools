@@ -61,3 +61,5 @@ def test_generate_sample_html_produces_valid_output():
     assert "const SECTION_TOOLTIPS" in html
     assert "Composable shortcut groups" in html
     assert "Guyton-Klinger decision rules" in html
+    assert "retirementSimulator.yamlSettings" in html
+    assert "restoreYamlDraft" in html
