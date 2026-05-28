@@ -23,7 +23,6 @@ nav:
   - Categorization Cleanup: categorization.md
   - Commands: commands.md
   - Privacy & Security: privacy-security.md
-  - Retirement Simulator: retirement-simulator.md
   - Troubleshooting: troubleshooting.md
 
 exclude_docs: |
