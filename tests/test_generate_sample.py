@@ -56,3 +56,6 @@ def test_generate_sample_html_produces_valid_output():
     assert 'id="sidebar-toggle"' in html
     assert "sidebar-collapsed" in html
     assert "const TOOLTIPS" in html
+    assert "const SECTION_TOOLTIPS" in html
+    assert "Composable shortcut groups" in html
+    assert "Guyton-Klinger decision rules" in html

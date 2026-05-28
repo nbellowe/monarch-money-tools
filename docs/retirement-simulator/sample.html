@@ -1679,61 +1679,67 @@ const SCENARIO_GROUPS = [
   {
     id: 'return-model',
     label: 'Return model',
+    tooltip: 'Choose how annual returns are generated without changing any other assumptions.',
     options: [
-      { label: 'Monte Carlo', cfg: { simulationMethod: 'monte_carlo' } },
-      { label: 'Historical', cfg: { simulationMethod: 'historical_bootstrap' } },
-      { label: 'Deterministic', cfg: { simulationMethod: 'deterministic' } },
+      { label: 'Monte Carlo', tooltip: 'Randomly samples returns from the configured expected return and volatility.', cfg: { simulationMethod: 'monte_carlo' } },
+      { label: 'Historical', tooltip: 'Bootstraps returns from the historical real-return table.', cfg: { simulationMethod: 'historical_bootstrap' } },
+      { label: 'Deterministic', tooltip: 'Runs one expected-return path with no random variation.', cfg: { simulationMethod: 'deterministic' } },
     ],
   },
   {
     id: 'withdrawal',
     label: 'Withdrawal strategy',
+    tooltip: 'Switch the retirement spending rule while leaving ages, market, and family assumptions alone.',
     options: [
-      { label: 'Constant', cfg: { withdrawalStrategy: 'constant_dollar' } },
-      { label: 'Guardrails', cfg: { withdrawalStrategy: 'guardrails' } },
-      { label: 'Guyton-Klinger', cfg: { withdrawalStrategy: 'guyton_klinger', withdrawalRate: 0.04 } },
-      { label: 'Vanguard', cfg: { withdrawalStrategy: 'vanguard_dynamic', withdrawalRate: 0.04 } },
-      { label: 'Percent', cfg: { withdrawalStrategy: 'percent_portfolio', withdrawalRate: 0.04 } },
-      { label: '1/N', cfg: { withdrawalStrategy: 'one_over_n' } },
+      { label: 'Constant', tooltip: 'Spend the same real-dollar lifestyle amount each retired year.', cfg: { withdrawalStrategy: 'constant_dollar' } },
+      { label: 'Guardrails', tooltip: 'Cut or raise spending when the withdrawal rate moves outside configured guardrails.', cfg: { withdrawalStrategy: 'guardrails' } },
+      { label: 'Guyton-Klinger', tooltip: 'Use Guyton-Klinger decision rules with capital preservation and prosperity triggers.', cfg: { withdrawalStrategy: 'guyton_klinger', withdrawalRate: 0.04 } },
+      { label: 'Vanguard', tooltip: 'Use Vanguard-style dynamic spending with annual raise and cut limits.', cfg: { withdrawalStrategy: 'vanguard_dynamic', withdrawalRate: 0.04 } },
+      { label: 'Percent', tooltip: 'Spend a fixed percentage of the current portfolio each retired year.', cfg: { withdrawalStrategy: 'percent_portfolio', withdrawalRate: 0.04 } },
+      { label: '1/N', tooltip: 'Spend portfolio divided by remaining horizon years.', cfg: { withdrawalStrategy: 'one_over_n' } },
     ],
   },
   {
     id: 'retirement-age',
     label: 'Retirement age',
+    tooltip: 'Change retirement timing for both people without changing spending or market assumptions.',
     options: [
-      { label: 'Profile ages', cfg: () => ({ retireNathanAge: DEFAULT.retireNathanAge, retireTanyaAge: DEFAULT.retireTanyaAge }) },
-      { label: 'Retire now', cfg: () => ({ retireNathanAge: DEFAULT.nathanAge, retireTanyaAge: DEFAULT.tanyaAge }) },
-      { label: '5 yrs earlier', cfg: () => ({ retireNathanAge: DEFAULT.retireNathanAge - 5, retireTanyaAge: DEFAULT.retireTanyaAge - 5 }) },
-      { label: '5 yrs later', cfg: () => ({ retireNathanAge: DEFAULT.retireNathanAge + 5, retireTanyaAge: DEFAULT.retireTanyaAge + 5 }) },
+      { label: 'Profile ages', tooltip: 'Restore retirement ages from the loaded profile.', cfg: () => ({ retireNathanAge: DEFAULT.retireNathanAge, retireTanyaAge: DEFAULT.retireTanyaAge }) },
+      { label: 'Retire now', tooltip: 'Set each retirement age to the current age.', cfg: () => ({ retireNathanAge: DEFAULT.nathanAge, retireTanyaAge: DEFAULT.tanyaAge }) },
+      { label: '5 yrs earlier', tooltip: 'Move each retirement age five years earlier than the profile.', cfg: () => ({ retireNathanAge: DEFAULT.retireNathanAge - 5, retireTanyaAge: DEFAULT.retireTanyaAge - 5 }) },
+      { label: '5 yrs later', tooltip: 'Move each retirement age five years later than the profile.', cfg: () => ({ retireNathanAge: DEFAULT.retireNathanAge + 5, retireTanyaAge: DEFAULT.retireTanyaAge + 5 }) },
     ],
   },
   {
     id: 'spending',
     label: 'Spending level',
+    tooltip: 'Adjust working-year spending and retirement spending level together.',
     options: [
-      { label: 'Profile spend', cfg: () => ({ baseSpending: DEFAULT.baseSpending, retirementSpendingFraction: DEFAULT.retirementSpendingFraction }) },
-      { label: 'Lean spend', cfg: () => ({ baseSpending: DEFAULT.baseSpending * 0.85, retirementSpendingFraction: Math.max(0.5, DEFAULT.retirementSpendingFraction - 0.10) }) },
-      { label: 'High spend', cfg: () => ({ baseSpending: DEFAULT.baseSpending * 1.15, retirementSpendingFraction: Math.min(1.3, DEFAULT.retirementSpendingFraction + 0.10) }) },
+      { label: 'Profile spend', tooltip: 'Restore spending from the loaded profile.', cfg: () => ({ baseSpending: DEFAULT.baseSpending, retirementSpendingFraction: DEFAULT.retirementSpendingFraction }) },
+      { label: 'Lean spend', tooltip: 'Reduce working spending by 15% and retirement lifestyle by 10 percentage points.', cfg: () => ({ baseSpending: DEFAULT.baseSpending * 0.85, retirementSpendingFraction: Math.max(0.5, DEFAULT.retirementSpendingFraction - 0.10) }) },
+      { label: 'High spend', tooltip: 'Increase working spending by 15% and retirement lifestyle by 10 percentage points.', cfg: () => ({ baseSpending: DEFAULT.baseSpending * 1.15, retirementSpendingFraction: Math.min(1.3, DEFAULT.retirementSpendingFraction + 0.10) }) },
     ],
   },
   {
     id: 'family-housing',
     label: 'Family & housing',
+    tooltip: 'Try common child and housing combinations without touching income or market assumptions.',
     options: [
-      { label: 'Profile', cfg: () => ({ numKids: DEFAULT.numKids, firstKidYear: DEFAULT.firstKidYear, upgradeHouse: DEFAULT.upgradeHouse, upgradeYear: DEFAULT.upgradeYear, upgradeAdditionalCost: DEFAULT.upgradeAdditionalCost }) },
-      { label: 'No kids/house', cfg: { numKids: 0, upgradeHouse: false, upgradeAdditionalCost: 0 } },
-      { label: 'Kids', cfg: () => ({ numKids: Math.max(2, DEFAULT.numKids), firstKidYear: DEFAULT.firstKidYear || 2, upgradeHouse: false }) },
-      { label: 'Kids + house', cfg: () => ({ numKids: Math.max(2, DEFAULT.numKids), firstKidYear: DEFAULT.firstKidYear || 2, upgradeHouse: true, upgradeYear: DEFAULT.upgradeYear || 4, upgradeAdditionalCost: DEFAULT.upgradeAdditionalCost || 400000 }) },
+      { label: 'Profile', tooltip: 'Restore kids and housing assumptions from the loaded profile.', cfg: () => ({ numKids: DEFAULT.numKids, firstKidYear: DEFAULT.firstKidYear, upgradeHouse: DEFAULT.upgradeHouse, upgradeYear: DEFAULT.upgradeYear, upgradeAdditionalCost: DEFAULT.upgradeAdditionalCost }) },
+      { label: 'No kids/house', tooltip: 'Remove child costs and future home upgrade costs.', cfg: { numKids: 0, upgradeHouse: false, upgradeAdditionalCost: 0 } },
+      { label: 'Kids', tooltip: 'Model at least two children, without a future home upgrade.', cfg: () => ({ numKids: Math.max(2, DEFAULT.numKids), firstKidYear: DEFAULT.firstKidYear || 2, upgradeHouse: false }) },
+      { label: 'Kids + house', tooltip: 'Model at least two children plus a future home upgrade.', cfg: () => ({ numKids: Math.max(2, DEFAULT.numKids), firstKidYear: DEFAULT.firstKidYear || 2, upgradeHouse: true, upgradeYear: DEFAULT.upgradeYear || 4, upgradeAdditionalCost: DEFAULT.upgradeAdditionalCost || 400000 }) },
     ],
   },
   {
     id: 'market-stress',
     label: 'Market stress',
+    tooltip: 'Apply coarse market stress assumptions while leaving retirement age and spending unchanged.',
     options: [
-      { label: 'Profile market', cfg: () => ({ equityReturnNominal: DEFAULT.equityReturnNominal, equityStd: DEFAULT.equityStd, bondReturnNominal: DEFAULT.bondReturnNominal, inflation: DEFAULT.inflation }) },
-      { label: 'Bear market', cfg: { equityReturnNominal: 0.07, equityStd: 0.20, bondReturnNominal: 0.03, inflation: 0.04 } },
-      { label: 'High inflation', cfg: () => ({ equityReturnNominal: DEFAULT.equityReturnNominal, equityStd: DEFAULT.equityStd, bondReturnNominal: DEFAULT.bondReturnNominal, inflation: 0.05 }) },
-      { label: 'Low returns', cfg: () => ({ equityReturnNominal: DEFAULT.equityReturnNominal - 0.02, equityStd: DEFAULT.equityStd, bondReturnNominal: DEFAULT.bondReturnNominal - 0.01, inflation: DEFAULT.inflation }) },
+      { label: 'Profile market', tooltip: 'Restore market return assumptions from the loaded profile.', cfg: () => ({ equityReturnNominal: DEFAULT.equityReturnNominal, equityStd: DEFAULT.equityStd, bondReturnNominal: DEFAULT.bondReturnNominal, inflation: DEFAULT.inflation }) },
+      { label: 'Bear market', tooltip: 'Lower expected returns, increase equity volatility, and raise inflation.', cfg: { equityReturnNominal: 0.07, equityStd: 0.20, bondReturnNominal: 0.03, inflation: 0.04 } },
+      { label: 'High inflation', tooltip: 'Keep nominal returns but raise inflation to reduce real returns.', cfg: () => ({ equityReturnNominal: DEFAULT.equityReturnNominal, equityStd: DEFAULT.equityStd, bondReturnNominal: DEFAULT.bondReturnNominal, inflation: 0.05 }) },
+      { label: 'Low returns', tooltip: 'Reduce expected stock and bond returns while keeping profile inflation.', cfg: () => ({ equityReturnNominal: DEFAULT.equityReturnNominal - 0.02, equityStd: DEFAULT.equityStd, bondReturnNominal: DEFAULT.bondReturnNominal - 0.01, inflation: DEFAULT.inflation }) },
     ],
   },
 ];
@@ -1790,7 +1796,7 @@ function renderPresets() {
   const grid = document.getElementById('preset-grid');
   grid.innerHTML = SCENARIO_GROUPS.map((group, groupIndex) => `
     <div class="scenario-type">
-      <div class="scenario-type-label">${group.label}</div>
+      <div class="scenario-type-label" data-group="${groupIndex}">${group.label}</div>
       <div class="scenario-options">
         ${group.options.map((option, optionIndex) => `
           <button class="preset-btn" data-group="${groupIndex}" data-option="${optionIndex}">${option.label}</button>
@@ -1799,10 +1805,22 @@ function renderPresets() {
     </div>
   `).join('');
 
+  grid.querySelectorAll('.scenario-type-label').forEach(label => {
+    const group = SCENARIO_GROUPS[+label.dataset.group];
+    if (!group?.tooltip) return;
+    label.dataset.tooltip = group.tooltip;
+    label.title = group.tooltip;
+  });
+
   grid.querySelectorAll('.preset-btn').forEach(btn => {
+    const group = SCENARIO_GROUPS[+btn.dataset.group];
+    const option = group.options[+btn.dataset.option];
+    if (option?.tooltip) {
+      btn.dataset.tooltip = option.tooltip;
+      btn.title = option.tooltip;
+      btn.setAttribute('aria-label', `${option.label}: ${option.tooltip}`);
+    }
     btn.addEventListener('click', () => {
-      const group = SCENARIO_GROUPS[+btn.dataset.group];
-      const option = group.options[+btn.dataset.option];
       grid.querySelectorAll(`.preset-btn[data-group="${btn.dataset.group}"]`)
         .forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -2067,6 +2085,22 @@ const TOOLTIPS = {
   'cashflow-chart': 'Median-path income, spending, and net savings through time.',
   'dist-chart': 'Distribution of ending portfolio balances across simulated outcomes.',
   'scenario-grid': 'Preset comparison cards recomputed with the same profile defaults.',
+};
+
+const SECTION_TOOLTIPS = {
+  presets: 'Composable shortcut groups. Each button changes one assumption category and preserves the other current settings.',
+  yaml: 'Advanced editor for the same profile settings controlled by this UI. Apply YAML to update sliders, buttons, and charts.',
+  ages: 'Who is included in the plan, current ages, and when each person stops working.',
+  portfolio: 'Starting investable assets and the planning withdrawal-rate threshold used for required-to-retire metrics.',
+  income: 'Employment income assumptions, RSU vesting, real income growth, and blended tax drag before retirement.',
+  spending: 'Working-year lifestyle spending, retirement spending level, and real lifestyle growth.',
+  kids: 'Child-related cash flows for childcare, K-12 costs, and college contributions.',
+  housing: 'Optional one-time future home upgrade cost and timing.',
+  healthcare: 'Retirement healthcare add-on before Medicare and the age when that add-on stops.',
+  ss: 'Social Security benefit estimates, claim age, and benefit haircut assumptions.',
+  market: 'Return model, nominal return assumptions, inflation, volatility, and stock allocation.',
+  simulation: 'Simulation horizon, run count, withdrawal strategy, and strategy-specific dynamic-spending rules.',
+  guardrails: 'Guardrail trigger thresholds, adjustment size, and hard lifestyle spending bounds.',
 };
 
 function setSidebarCollapsed(collapsed, persist) {
@@ -2621,6 +2655,13 @@ function syncUIFromCfg() {
 }
 
 function applyTooltips() {
+  document.querySelectorAll('.section-header').forEach(hdr => {
+    const text = SECTION_TOOLTIPS[hdr.dataset.section];
+    if (!text) return;
+    hdr.dataset.tooltip = text;
+    hdr.title = text;
+  });
+
   Object.entries(TOOLTIPS).forEach(([id, text]) => {
     const el = document.getElementById(id);
     if (!el) return;
