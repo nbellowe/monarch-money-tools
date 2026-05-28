@@ -2071,6 +2071,7 @@ const WITHDRAWAL_STRATEGIES = [
   'vanguard_dynamic',
 ];
 const SIDEBAR_STORAGE_KEY = 'retirementSimulator.sidebarCollapsed';
+const YAML_STORAGE_KEY = 'retirementSimulator.yamlSettings';
 let yamlDirty = false;
 
 const TOOLTIPS = {
@@ -2471,7 +2472,51 @@ function setYamlStatus(message, state = '') {
   status.className = state ? `yaml-status ${state}` : 'yaml-status';
 }
 
-function syncYamlFromCfg(message = '') {
+function saveYamlDraft(value) {
+  try {
+    window.localStorage.setItem(YAML_STORAGE_KEY, value);
+  } catch {
+    // Ignore storage failures; the editor still works for the current page load.
+  }
+}
+
+function loadYamlDraft() {
+  try {
+    return window.localStorage.getItem(YAML_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function restoreYamlDraft() {
+  const textarea = document.getElementById('yamlSettings');
+  const saved = loadYamlDraft();
+  if (!textarea || saved == null || saved === '') {
+    return { found: false, valid: false };
+  }
+
+  textarea.value = saved;
+  if (!window.jsyaml?.load) {
+    yamlDirty = true;
+    setYamlStatus('Saved YAML found, but YAML parser unavailable', 'dirty');
+    return { found: true, valid: false };
+  }
+
+  try {
+    const parsed = window.jsyaml.load(saved);
+    cfg = cfgFromProfileYaml(parsed);
+    normalizeConfigBounds();
+    yamlDirty = false;
+    return { found: true, valid: true };
+  } catch (err) {
+    yamlDirty = true;
+    setYamlStatus(`Saved YAML has errors: ${err?.message ?? String(err)}`, 'error');
+    return { found: true, valid: false };
+  }
+}
+
+function syncYamlFromCfg(message = '', options = {}) {
+  const { persist = true } = options;
   const textarea = document.getElementById('yamlSettings');
   if (!textarea) return;
   if (!window.jsyaml?.dump) {
@@ -2483,6 +2528,7 @@ function syncYamlFromCfg(message = '') {
     sortKeys: false,
     lineWidth: 120,
   });
+  if (persist) saveYamlDraft(textarea.value);
   yamlDirty = false;
   setYamlStatus(message, message ? 'ok' : '');
 }
@@ -2524,8 +2570,9 @@ async function copyYamlSettings() {
 }
 
 function bindYamlEditor() {
-  document.getElementById('yamlSettings')?.addEventListener('input', () => {
+  document.getElementById('yamlSettings')?.addEventListener('input', event => {
     yamlDirty = true;
+    saveYamlDraft(event.currentTarget.value);
     setYamlStatus('YAML edits not applied', 'dirty');
   });
   document.getElementById('applyYaml')?.addEventListener('click', applyYamlSettings);
@@ -2685,7 +2732,8 @@ function updateDisplayLabels() {
   }
 }
 
-function syncUIFromCfg() {
+function syncUIFromCfg(options = {}) {
+  const { syncYaml = true, persistYaml = true } = options;
   normalizeConfigBounds();
   RANGE_FIELDS.forEach(field => {
     const el = document.getElementById(field);
@@ -2709,7 +2757,7 @@ function syncUIFromCfg() {
   updatePanelState();
   updateDisplayLabels();
   updateRealReturnNote();
-  syncYamlFromCfg();
+  if (syncYaml) syncYamlFromCfg('', { persist: persistYaml });
 }
 
 function applyTooltips() {
@@ -2751,7 +2799,15 @@ document.addEventListener('DOMContentLoaded', () => {
   bindSidebarToggle();
   bindYamlEditor();
   bindInputs();
-  syncUIFromCfg();
+  const yamlRestore = restoreYamlDraft();
+  syncUIFromCfg({
+    syncYaml: !yamlRestore.found || yamlRestore.valid,
+    persistYaml: yamlRestore.found && yamlRestore.valid,
+  });
+  updateScenarioButtonStates();
+  if (yamlRestore.valid) {
+    setYamlStatus('Restored saved YAML', 'ok');
+  }
   scheduleRender();
 });
 </script>
