@@ -49,18 +49,6 @@ def test_cli_run_without_input_prints_actionable_error(tmp_path: Path, monkeypat
     assert "Traceback" not in result.output
 
 
-def test_cli_help_exposes_retire_without_retirement_group() -> None:
-    runner = CliRunner()
-
-    help_result = runner.invoke(app, ["--help"])
-    group_result = runner.invoke(app, ["retirement", "--help"])
-
-    assert help_result.exit_code == 0, help_result.output
-    assert "retire" in help_result.output
-    assert "Retirement profile and simulator commands" not in help_result.output
-    assert group_result.exit_code != 0
-
-
 def test_grouped_data_run_alias_works(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     source = Path.cwd() / "tests/fixtures/monarch_transactions.csv"
     monkeypatch.chdir(tmp_path)

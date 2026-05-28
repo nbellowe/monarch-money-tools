@@ -88,6 +88,3 @@ def exported_dir() -> Path:
 def private_exports_dir() -> Path:
     return root_dir() / "private" / "monarch" / "exports"
 
-
-def retirement_dir() -> Path:
-    return root_dir() / "reports" / "retirement"

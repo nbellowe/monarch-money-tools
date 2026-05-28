@@ -156,7 +156,7 @@ def load_profile(path: Path | None = None) -> UserProfile:
 
 PROFILE_TEMPLATE = """\
 # profile.yaml - Monarch Money Tools retirement profile
-# Run `monarch retire` to generate a simulation HTML from this config.
+# Visit https://nbellowe.github.io/retirement-simulator and drag in this file.
 # All monetary values are in today's dollars, before future inflation.
 
 people:

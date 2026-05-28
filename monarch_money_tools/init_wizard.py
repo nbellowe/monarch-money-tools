@@ -233,7 +233,8 @@ def _step_profile_bootstrap(yes: bool) -> None:
         return
 
     profile_path.write_text(PROFILE_TEMPLATE, encoding="utf-8")
-    console.print("[green]ok[/] Created profile.yaml. Edit it before running `monarch retire`.")
+    url = "https://nbellowe.github.io/retirement-simulator"
+    console.print(f"[green]ok[/] Visit {url} and drag in your profile.")
 
 
 def _step_doctor() -> None:
