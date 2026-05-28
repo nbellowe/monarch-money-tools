@@ -29,6 +29,8 @@ def test_generate_sample_html_produces_valid_output():
     # Sentinels must be replaced
     assert "/* __MONARCH_DEFAULT__ */ {}" not in html
     assert "/* __MONARCH_META__ */ {}" not in html
+    assert "const FALLBACK_DEFAULT" in html
+    assert "const RAW_DEFAULT =" in html
 
     # Names appear in the injected JSON
     assert '"Alex"' in html
